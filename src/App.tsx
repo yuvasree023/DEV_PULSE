@@ -1,70 +1,46 @@
 import { useState, useEffect } from 'react';
 import { TopNav } from './components/TopNav';
 import { LeftSidebar } from './components/LeftSidebar';
-import { CrossToolImpactView } from './components/CrossToolImpactView';
-import { ManageAdoptionView } from './components/ManageAdoptionView';
-import { EnableUsersView } from './components/EnableUsersView';
-import { MaximizeImpactView } from './components/MaximizeImpactView';
-import { KanbanBoard } from './components/KanbanBoard';
+import { OverviewView } from './components/OverviewView';
+import { AIToolsView } from './components/AIToolsView';
+import { AIImpactView } from './components/AIImpactView';
+import { MLInsightsView } from './components/MLInsightsView';
 import { RepositoriesView } from './components/RepositoriesView';
-import { APIInspector } from './components/APIInspector';
+import { DatasetModal } from './components/DatasetModal';
 import { AIInsightsModal } from './components/AIInsightsModal';
-import { PullRequest } from './types';
-import { SAMPLE_PRS } from './mockData';
 import { api } from './api';
+import { OverviewMetrics } from './types';
 
 export default function App() {
-  const [activeNav, setActiveNav] = useState('ai-impact');
-  const [currentView, setCurrentView] = useState('cross-tool-impact');
-  const [selectedTool, setSelectedTool] = useState('all');
+  const [currentView, setCurrentView] = useState<'overview' | 'ai-tools' | 'ai-impact' | 'ml-insights' | 'repositories'>('overview');
   const [isInsightsOpen, setIsInsightsOpen] = useState(false);
-  const [inspectedPr, setInspectedPr] = useState<PullRequest | null>(null);
-  const [prs, setPrs] = useState<PullRequest[]>(SAMPLE_PRS);
+  const [isDatasetOpen, setIsDatasetOpen] = useState(false);
+  const [overview, setOverview] = useState<OverviewMetrics | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const fetchGlobalMetrics = () => {
+    api.getOverview()
+      .then((data) => setOverview(data))
+      .catch((err) => console.warn('Could not fetch overview metrics:', err));
+  };
 
   useEffect(() => {
-    api.getPullRequests(50)
-      .then((data) => {
-        if (data.pull_requests && data.pull_requests.length > 0) {
-          setPrs(data.pull_requests);
-        }
-      })
-      .catch((err) => {
-        console.warn('Could not fetch real PRs for kanban, using fallback:', err);
-      });
-  }, []);
+    fetchGlobalMetrics();
+  }, [refreshKey]);
 
-  const handleInspectBlocker = (pr: PullRequest) => {
-    setInspectedPr(pr);
-    setIsInsightsOpen(true);
-  };
-
-  const handleOpenGeneralInsights = () => {
-    setInspectedPr(null);
-    setIsInsightsOpen(true);
-  };
-
-  const handleSelectNav = (nav: string) => {
-    setActiveNav(nav);
-    if (nav === 'home' || nav === 'ai-impact') {
-      setCurrentView('cross-tool-impact');
-    } else if (nav === 'teams') {
-      setCurrentView('manage-adoption');
-    } else if (nav === 'people') {
-      setCurrentView('enable-users');
-    } else if (nav === 'delivery') {
-      setCurrentView('kanban');
-    } else if (nav === 'devfinops') {
-      setCurrentView('maximize-impact');
-    }
+  const handleDatasetUpdated = () => {
+    setRefreshKey((k) => k + 1);
   };
 
   return (
     <div className="min-h-screen bg-[#f8f9fc] text-slate-800 antialiased font-sans flex flex-col">
-      {/* Top Navigation Bar with brand mark */}
+      {/* Top Navigation Bar with brand and primary 5 tabs */}
       <TopNav
-        activeNav={activeNav}
-        onSelectNav={handleSelectNav}
-        onOpenAiInsights={handleOpenGeneralInsights}
+        activeNav={currentView}
+        onSelectNav={(view) => setCurrentView(view as any)}
+        onOpenDatasetModal={() => setIsDatasetOpen(true)}
+        onOpenAiInsights={() => setIsInsightsOpen(true)}
+        totalPrs={overview?.total_prs}
       />
 
       {/* Main Workspace: Left Sidebar + Main Content Canvas */}
@@ -72,72 +48,52 @@ export default function App() {
         {/* Left Sidebar */}
         <LeftSidebar
           currentView={currentView}
-          onSelectView={(view) => setCurrentView(view)}
-          selectedTool={selectedTool}
-          onSelectTool={(tool) => {
-            setSelectedTool(tool);
-            setCurrentView('cross-tool-impact');
-          }}
+          onSelectView={(view) => setCurrentView(view as any)}
+          onOpenDatasetModal={() => setIsDatasetOpen(true)}
+          totalPrs={overview?.total_prs}
         />
 
         {/* Scrollable Main Content Area */}
         <main className="flex-1 overflow-y-auto p-6 md:p-8">
-          <div className="max-w-[1400px] mx-auto">
-            {currentView === 'cross-tool-impact' && (
-              <CrossToolImpactView
-                selectedTool={selectedTool}
-                onSelectTool={(tool) => setSelectedTool(tool)}
-                onOpenAiInsights={handleOpenGeneralInsights}
+          <div className="max-w-[1400px] mx-auto" key={refreshKey}>
+            {currentView === 'overview' && (
+              <OverviewView
+                onNavigateToTools={() => setCurrentView('ai-tools')}
+                onNavigateToImpact={() => setCurrentView('ai-impact')}
+                onOpenAiInsights={() => setIsInsightsOpen(true)}
               />
             )}
 
-            {currentView === 'manage-adoption' && <ManageAdoptionView />}
-
-            {currentView === 'enable-users' && <EnableUsersView />}
-
-            {currentView === 'maximize-impact' && (
-              <MaximizeImpactView
-                onInspectPr={handleInspectBlocker}
-                onOpenAiInsights={handleOpenGeneralInsights}
-              />
+            {currentView === 'ai-tools' && (
+              <AIToolsView />
             )}
 
-            {currentView === 'kanban' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-                      Task Progression & Review Kanban
-                    </h1>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Operational task management isolated from historical dataset analytics
-                    </p>
-                  </div>
-                </div>
-                <KanbanBoard prs={prs} onInspectBlocker={handleInspectBlocker} />
-              </div>
+            {currentView === 'ai-impact' && (
+              <AIImpactView />
             )}
 
-            {currentView === 'repos' && (
-              <div className="space-y-4">
-                <RepositoriesView />
-              </div>
+            {currentView === 'ml-insights' && (
+              <MLInsightsView onOpenAiInsights={() => setIsInsightsOpen(true)} />
             )}
 
-            {currentView === 'api-etl' && (
-              <div className="space-y-4">
-                <APIInspector />
-              </div>
+            {currentView === 'repositories' && (
+              <RepositoriesView />
             )}
           </div>
         </main>
       </div>
 
-      {/* Grounded Gemini Explanation Modal */}
+      {/* Secondary Dataset Evaluator Modal */}
+      <DatasetModal
+        isOpen={isDatasetOpen}
+        onClose={() => setIsDatasetOpen(false)}
+        onDatasetUpdated={handleDatasetUpdated}
+      />
+
+      {/* Secondary Grounded Gemini Explanation Modal */}
       <AIInsightsModal
         isOpen={isInsightsOpen}
         onClose={() => setIsInsightsOpen(false)}
-        inspectedPr={inspectedPr}
       />
     </div>
   );

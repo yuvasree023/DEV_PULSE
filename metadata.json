@@ -1,6 +1,0 @@
-{
-  "name": "AI Impact & Developer Productivity Dashboard",
-  "description": "Backend, data pipeline, and analytics for AI Impact & Developer Productivity Dashboard",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
