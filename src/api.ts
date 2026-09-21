@@ -10,7 +10,7 @@ import {
   PullRequest
 } from './types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 async function fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
@@ -28,6 +28,8 @@ async function fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T>
 }
 
 export const api = {
+  checkHealth: (): Promise<{ status: string }> => fetchJson<{ status: string }>('/health'),
+
   getOverview: (): Promise<OverviewMetrics> => fetchJson<OverviewMetrics>('/api/overview'),
   
   getAIImpact: (): Promise<AIImpactMetrics> => fetchJson<AIImpactMetrics>('/api/ai-impact'),
@@ -43,7 +45,7 @@ export const api = {
   getDatasetInfo: (): Promise<DatasetInfoResponse> => fetchJson<DatasetInfoResponse>('/api/dataset-info'),
   
   getPullRequests: (limit = 50): Promise<{ pull_requests: PullRequest[] }> => 
-    fetchJson<{ pull_requests: PullRequest[] }>(`/api/v1/pull-requests?limit=${limit}`),
+    fetchJson<{ pull_requests: PullRequest[] }>(`/api/pull-requests?limit=${limit}`),
 
   explainMetrics: (focus = 'holistic overview', customQuery?: string): Promise<ExplainResponse> => {
     return fetchJson<ExplainResponse>('/api/explain', {
