@@ -1,0 +1,50 @@
+# Large raw datasets & parquet files
+pull_request.json
+pr_reviews.json
+pr_reviews*.json
+*.parquet
+~$*
+uploads/
+scratch/
+scratch_test_data/
+
+# Frontend development and build artifacts
+node_modules/
+dist/
+src/
+index.html
+vite.config.ts
+tsconfig.json
+package.json
+package-lock.json
+
+# Local database & state
+devpulse.db
+*.db
+*.sqlite3
+
+# Python build, cache & virtual environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.venv/
+venv/
+
+# Development & Git
+.git/
+.github/
+.vscode/
+.env*
+!.env.example
+*.log
+
+# Documentation & deployment descriptors
+README.md
+backend/README.md
+backend/Dockerfile
+backend/render.yaml
+backend/railway.json
+backend/alembic/
+backend/scripts/

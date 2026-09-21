@@ -40,16 +40,23 @@ class DataLoader:
         self.dataset_meta: Dict[str, Any] = {}
 
     def _resolve_file(self, base_name: str, explicit_path: Optional[str] = None) -> str:
-        """Find the dataset file in data_dir in .json or .parquet format."""
+        """Find the dataset file in data_dir in .json.gz, .json, or .parquet format."""
         if explicit_path and os.path.exists(explicit_path):
             return explicit_path
 
+        # Candidate paths prioritized by compression and availability
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        backend_dir = os.path.dirname(os.path.dirname(current_dir))
         candidates = [
+            os.path.join(self.data_dir, "backend", "data", f"{base_name}.json.gz"),
+            os.path.join(self.data_dir, "backend", "data", f"{base_name}.json"),
+            os.path.join(backend_dir, "data", f"{base_name}.json.gz"),
+            os.path.join(backend_dir, "data", f"{base_name}.json"),
+            os.path.join(self.data_dir, f"{base_name}.json.gz"),
             os.path.join(self.data_dir, f"{base_name}.json"),
             os.path.join(self.data_dir, f"{base_name}.parquet"),
-            os.path.join(self.data_dir, f"{base_name} (1).json"),
-            os.path.join(self.data_dir, "backend", "data", f"{base_name}.json"),
             os.path.join(self.data_dir, "backend", "data", f"{base_name}.parquet"),
+            os.path.join(backend_dir, "data", f"{base_name}.parquet"),
         ]
         for c in candidates:
             if os.path.exists(c):
@@ -57,20 +64,30 @@ class DataLoader:
         return os.path.join(self.data_dir, f"{base_name}.json")
 
     def _read_file(self, filepath: str) -> pd.DataFrame:
-        """Read a dataset from either JSON or Parquet."""
+        """Read a dataset from JSON, Gzipped JSON, or Parquet."""
         if not os.path.exists(filepath):
             raise FileNotFoundError(f"Dataset file not found at {filepath}")
         
-        if filepath.endswith(".json"):
+        if filepath.endswith(".json") or filepath.endswith(".json.gz"):
             return pd.read_json(filepath)
         elif filepath.endswith(".parquet"):
-            return pd.read_parquet(filepath)
+            try:
+                return pd.read_parquet(filepath)
+            except (ImportError, ModuleNotFoundError) as exc:
+                logger.error("Parquet engine (pyarrow) not installed in runtime.")
+                raise RuntimeError(
+                    "Parquet processing is disabled on the serverless deployment to optimize bundle size. "
+                    "Please upload dataset files in .json format."
+                ) from exc
         else:
             # Try json first, then parquet
             try:
                 return pd.read_json(filepath)
             except Exception:
-                return pd.read_parquet(filepath)
+                try:
+                    return pd.read_parquet(filepath)
+                except (ImportError, ModuleNotFoundError) as exc:
+                    raise RuntimeError("Parquet support requires pyarrow. Please use JSON datasets.") from exc
 
     def validate_schema(self, df: pd.DataFrame, schema_name: str) -> Tuple[bool, list]:
         """Validate that the dataframe contains all required columns."""
@@ -208,7 +225,21 @@ class DataLoader:
     def get_data(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """Return the cleaned dataframes. Loads if not already cached."""
         if self.df_prs is None or self.df_reviews is None or self.df_repos is None:
-            self.load_dataset()
+            try:
+                self.load_dataset()
+            except Exception as exc:
+                logger.warning(f"Could not load dataset into memory: {exc}")
+                if self.df_prs is None:
+                    self.df_prs = pd.DataFrame(columns=[
+                        "id", "number", "title", "body", "agent", "user_id", "user",
+                        "state", "created_at", "closed_at", "merged_at", "repo_id",
+                        "repo_url", "html_url", "is_ai_assisted", "is_merged",
+                        "cycle_time_hours", "review_count", "review_time_hours"
+                    ])
+                if self.df_reviews is None:
+                    self.df_reviews = pd.DataFrame(columns=REQUIRED_SCHEMAS["pr_reviews"])
+                if self.df_repos is None:
+                    self.df_repos = pd.DataFrame(columns=REQUIRED_SCHEMAS["repository"])
         return self.df_prs, self.df_reviews, self.df_repos
 
 

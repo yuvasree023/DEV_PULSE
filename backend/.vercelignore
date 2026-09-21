@@ -1,0 +1,25 @@
+# Large datasets & parquet files
+*.parquet
+~$*
+uploads/
+*.db
+*.sqlite3
+
+# Python cache & env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.venv/
+venv/
+
+# Development files & deployment templates
+alembic/
+scripts/
+Dockerfile
+render.yaml
+railway.json
+README.md
+.env*
+!.env.example
