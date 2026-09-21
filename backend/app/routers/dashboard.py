@@ -37,6 +37,9 @@ def get_overview():
 
 
 @router.get("/ai-impact", summary="Get AI vs Non-AI cycle times, merge rates, and trends")
+@router.get("/api/ai-impact", include_in_schema=False)
+@router.get("/analytics/ai-impact", include_in_schema=False)
+@router.get("/v1/analytics/ai-impact", include_in_schema=False)
 def get_ai_impact():
     try:
         return metrics_service.get_ai_impact_metrics()

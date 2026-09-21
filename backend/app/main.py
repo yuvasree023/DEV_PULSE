@@ -109,6 +109,8 @@ def health_check():
 
 # Register all /api core endpoints
 app.include_router(dashboard_router, prefix="/api")
+# Also register dashboard routes directly at root to handle stripped prefixes on Vercel
+app.include_router(dashboard_router)
 
 # Register /api/v1 legacy routers & aliases
 api_v1_prefix = "/api/v1"
@@ -118,6 +120,17 @@ app.include_router(tasks_router, prefix=api_v1_prefix)
 app.include_router(ai_insights_router, prefix=api_v1_prefix)
 app.include_router(pull_requests_router, prefix=api_v1_prefix)
 app.include_router(repositories_router, prefix=api_v1_prefix)
+
+# Explicit top-level aliases for AI impact to prevent any possible 404
+@app.get("/api/ai-impact", tags=["Real Data Analytics & ML Dashboard"], include_in_schema=False)
+@app.get("/ai-impact", tags=["Real Data Analytics & ML Dashboard"], include_in_schema=False)
+@app.get("/api/v1/analytics/ai-impact", tags=["Real Data Analytics & ML Dashboard"], include_in_schema=False)
+def ai_impact_direct_route():
+    try:
+        from app.services.metrics import metrics_service
+    except ImportError:
+        from backend.app.services.metrics import metrics_service
+    return metrics_service.get_ai_impact_metrics()
 
 
 @app.get("/", tags=["Root"])
