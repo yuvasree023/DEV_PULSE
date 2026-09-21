@@ -1,3 +1,6 @@
+import React from 'react';
+import { Bot, Terminal, Code2, Sparkles, Cpu } from 'lucide-react';
+
 export function CopilotIcon({ className = 'w-5 h-5' }: { className?: string }) {
   return (
     <div className={`flex items-center justify-center rounded-md bg-gradient-to-tr from-sky-400 to-blue-600 text-white p-1 shadow-xs ${className}`}>
@@ -18,12 +21,34 @@ export function CursorIcon({ className = 'w-5 h-5' }: { className?: string }) {
   );
 }
 
+export function CodexIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <div className={`flex items-center justify-center rounded-md bg-gradient-to-tr from-emerald-600 to-teal-500 text-white p-1 shadow-xs ${className}`}>
+      <Terminal className="w-full h-full stroke-[2.2]" />
+    </div>
+  );
+}
+
+export function ClaudeIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <div className={`flex items-center justify-center rounded-md bg-gradient-to-tr from-amber-600 to-orange-500 text-white p-1 shadow-xs ${className}`}>
+      <Code2 className="w-full h-full stroke-[2.2]" />
+    </div>
+  );
+}
+
+export function DevinIcon({ className = 'w-5 h-5' }: { className?: string }) {
+  return (
+    <div className={`flex items-center justify-center rounded-md bg-gradient-to-tr from-indigo-600 to-violet-600 text-white p-1 shadow-xs ${className}`}>
+      <Cpu className="w-full h-full stroke-[2.2]" />
+    </div>
+  );
+}
+
 export function GeminiIcon({ className = 'w-5 h-5' }: { className?: string }) {
   return (
     <div className={`flex items-center justify-center rounded-md bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 text-white p-1 shadow-xs ${className}`}>
-      <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
-        <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" />
-      </svg>
+      <Sparkles className="w-full h-full fill-current" />
     </div>
   );
 }
@@ -42,17 +67,19 @@ export function SourcegraphIcon({ className = 'w-5 h-5' }: { className?: string 
 }
 
 export function ToolIconRenderer({ id, className = 'w-5 h-5' }: { id: string; className?: string }) {
-  switch (id.toLowerCase()) {
-    case 'copilot':
-    case 'github copilot':
-      return <CopilotIcon className={className} />;
-    case 'cursor':
-      return <CursorIcon className={className} />;
-    case 'gemini':
-      return <GeminiIcon className={className} />;
-    case 'sourcegraph':
-      return <SourcegraphIcon className={className} />;
-    default:
-      return <GeminiIcon className={className} />;
-  }
+  const norm = (id || '').toLowerCase().replace(/[\s_-]+/g, '');
+
+  if (norm.includes('copilot')) return <CopilotIcon className={className} />;
+  if (norm.includes('cursor')) return <CursorIcon className={className} />;
+  if (norm.includes('codex') || norm.includes('openai')) return <CodexIcon className={className} />;
+  if (norm.includes('claude')) return <ClaudeIcon className={className} />;
+  if (norm.includes('devin')) return <DevinIcon className={className} />;
+  if (norm.includes('gemini') || norm.includes('jules') || norm.includes('google')) return <GeminiIcon className={className} />;
+  if (norm.includes('sourcegraph') || norm.includes('cody')) return <SourcegraphIcon className={className} />;
+
+  return (
+    <div className={`flex items-center justify-center rounded-md bg-purple-600 text-white p-1 shadow-xs ${className}`}>
+      <Bot className="w-full h-full" />
+    </div>
+  );
 }

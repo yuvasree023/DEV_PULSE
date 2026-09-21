@@ -1,183 +1,279 @@
 import { useState } from 'react';
 import { PullRequest } from '../types';
-import { AlertTriangle, Bot, User, Clock, Sparkles } from 'lucide-react';
+import { Bot, User, Clock, CheckCircle2, Plus, ListTodo } from 'lucide-react';
+import { ToolIconRenderer } from './ToolIcons';
 
-interface KanbanBoardProps {
-  prs: PullRequest[];
-  onInspectBlocker: (pr: PullRequest) => void;
+interface KanbanTask {
+  id: string;
+  title: string;
+  assignee: string;
+  status: 'TODO' | 'IN PROGRESS' | 'IN REVIEW' | 'DONE';
+  projectStatus: 'PLANNED' | 'ACTIVE' | 'AT RISK' | 'COMPLETED';
+  agentTag?: string;
+  repo: string;
 }
 
-export function KanbanBoard({ prs, onInspectBlocker }: KanbanBoardProps) {
-  const [filterAgent, setFilterAgent] = useState<'all' | 'copilot' | 'cursor' | 'human'>('all');
+const INITIAL_TASKS: KanbanTask[] = [
+  {
+    id: 'TASK-101',
+    title: 'Migrate parquet reader from polars to pyarrow dynamic stream',
+    assignee: 'alex.chen',
+    status: 'IN REVIEW',
+    projectStatus: 'ACTIVE',
+    agentTag: 'OpenAI_Codex',
+    repo: 'devpulse/pipeline'
+  },
+  {
+    id: 'TASK-102',
+    title: 'Validate required schema columns & reject malformed uploads',
+    assignee: 'sarah.k',
+    status: 'DONE',
+    projectStatus: 'COMPLETED',
+    agentTag: 'Copilot',
+    repo: 'devpulse/backend'
+  },
+  {
+    id: 'TASK-103',
+    title: 'Implement Scikit-Learn K-Means explainable developer clustering',
+    assignee: 'marcus.v',
+    status: 'IN PROGRESS',
+    projectStatus: 'ACTIVE',
+    agentTag: 'Cursor',
+    repo: 'devpulse/ml-insights'
+  },
+  {
+    id: 'TASK-104',
+    title: 'Add ground truth strictness checks to Gemini explanation service',
+    assignee: 'elena.r',
+    status: 'TODO',
+    projectStatus: 'PLANNED',
+    agentTag: 'Devin',
+    repo: 'devpulse/gemini-service'
+  },
+  {
+    id: 'TASK-105',
+    title: 'Hot-reload dashboard on evaluator parquet file drop',
+    assignee: 'jordan.m',
+    status: 'IN REVIEW',
+    projectStatus: 'ACTIVE',
+    agentTag: 'Claude_Code',
+    repo: 'devpulse/frontend'
+  },
+];
 
-  const filteredPrs = prs.filter((p) => {
-    if (filterAgent === 'all') return true;
-    if (filterAgent === 'human') return !p.agent;
-    return p.agent === filterAgent;
+interface KanbanBoardProps {
+  prs?: PullRequest[];
+  onInspectBlocker?: (pr: PullRequest) => void;
+}
+
+export function KanbanBoard({ onInspectBlocker }: KanbanBoardProps) {
+  const [tasks, setTasks] = useState<KanbanTask[]>(INITIAL_TASKS);
+  const [activeProjectFilter, setActiveProjectFilter] = useState<string>('ALL');
+  const [isAddingTask, setIsAddingTask] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newAssignee, setNewAssignee] = useState('');
+  const [newStatus, setNewStatus] = useState<'TODO' | 'IN PROGRESS' | 'IN REVIEW' | 'DONE'>('TODO');
+  const [newProjStatus, setNewProjStatus] = useState<'PLANNED' | 'ACTIVE' | 'AT RISK' | 'COMPLETED'>('ACTIVE');
+
+  const filteredTasks = tasks.filter((t) => {
+    if (activeProjectFilter === 'ALL') return true;
+    return t.projectStatus === activeProjectFilter;
   });
 
-  const columns = [
-    {
-      id: 'open-no-review',
-      title: 'Open - No Review',
-      badgeClass: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-      items: filteredPrs.filter((p) => p.state === 'open' && (!p.reviews || p.reviews.length === 0)),
-    },
-    {
-      id: 'in-review',
-      title: 'In Review',
-      badgeClass: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
-      items: filteredPrs.filter(
-        (p) =>
-          p.state === 'open' &&
-          p.reviews &&
-          p.reviews.length > 0 &&
-          p.reviews[p.reviews.length - 1].state === 'COMMENTED'
-      ),
-    },
-    {
-      id: 'changes-requested',
-      title: 'Changes Requested',
-      badgeClass: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
-      items: filteredPrs.filter(
-        (p) =>
-          p.state === 'open' &&
-          p.reviews &&
-          p.reviews.length > 0 &&
-          p.reviews[p.reviews.length - 1].state === 'CHANGES_REQUESTED'
-      ),
-    },
-    {
-      id: 'approved-ready-to-merge',
-      title: 'Approved - Ready to Merge',
-      badgeClass: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
-      items: filteredPrs.filter(
-        (p) =>
-          (p.state === 'open' &&
-            p.reviews &&
-            p.reviews.length > 0 &&
-            p.reviews[p.reviews.length - 1].state === 'APPROVED') ||
-          p.state === 'merged'
-      ),
-    },
+  const columns: Array<{ id: 'TODO' | 'IN PROGRESS' | 'IN REVIEW' | 'DONE'; title: string; color: string }> = [
+    { id: 'TODO', title: 'TODO', color: 'bg-slate-100 text-slate-700' },
+    { id: 'IN PROGRESS', title: 'IN PROGRESS', color: 'bg-blue-100 text-blue-700' },
+    { id: 'IN REVIEW', title: 'IN REVIEW', color: 'bg-purple-100 text-purple-700' },
+    { id: 'DONE', title: 'DONE', color: 'bg-emerald-100 text-emerald-700' },
   ];
+
+  const handleCreateTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim()) return;
+
+    const newTask: KanbanTask = {
+      id: `TASK-${Math.floor(100 + Math.random() * 900)}`,
+      title: newTitle.trim(),
+      assignee: newAssignee.trim() || 'unassigned',
+      status: newStatus,
+      projectStatus: newProjStatus,
+      repo: 'devpulse/app'
+    };
+
+    setTasks([newTask, ...tasks]);
+    setNewTitle('');
+    setNewAssignee('');
+    setIsAddingTask(false);
+  };
 
   return (
     <div id="kanban-section" className="space-y-4">
+      {/* Header & Filter Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-            PR Lifecycle & Kanban Task Board
+          <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+            Sprint & PR Task Management
           </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Real-time pipeline tracking based on PR state and latest reviewer feedback
+          <p className="text-xs text-slate-500 mt-0.5">
+            Operational task board isolated from historical dataset analytics
           </p>
         </div>
 
-        {/* Filter controls */}
-        <div className="flex items-center gap-1.5 p-1 rounded-lg bg-slate-100 dark:bg-slate-800 self-start sm:self-auto text-xs font-medium">
-          {(['all', 'copilot', 'cursor', 'human'] as const).map((agent) => (
-            <button
-              key={agent}
-              id={`filter-agent-${agent}`}
-              onClick={() => setFilterAgent(agent)}
-              className={`px-3 py-1.5 rounded-md capitalize transition-all ${
-                filterAgent === agent
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              {agent === 'all' ? 'All Authors' : agent}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          {/* Project Status Filter */}
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 text-xs font-semibold">
+            {['ALL', 'PLANNED', 'ACTIVE', 'AT RISK', 'COMPLETED'].map((status) => (
+              <button
+                key={status}
+                onClick={() => setActiveProjectFilter(status)}
+                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                  activeProjectFilter === status
+                    ? 'bg-white text-purple-700 shadow-2xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {status}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => setIsAddingTask(!isAddingTask)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 transition-colors cursor-pointer shadow-2xs"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>New Task</span>
+          </button>
         </div>
       </div>
 
+      {/* Add Task Modal / Form */}
+      {isAddingTask && (
+        <form
+          onSubmit={handleCreateTask}
+          className="p-4 rounded-2xl bg-white border border-purple-200 shadow-sm space-y-3"
+        >
+          <h4 className="text-xs font-bold text-slate-900">Create Operational Task</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+            <input
+              type="text"
+              placeholder="Task title..."
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              className="sm:col-span-2 px-3 py-1.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+              required
+            />
+            <input
+              type="text"
+              placeholder="Assignee (e.g. dev.user)"
+              value={newAssignee}
+              onChange={(e) => setNewAssignee(e.target.value)}
+              className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+            />
+            <select
+              value={newStatus}
+              onChange={(e) => setNewStatus(e.target.value as any)}
+              className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+            >
+              <option value="TODO">TODO</option>
+              <option value="IN PROGRESS">IN PROGRESS</option>
+              <option value="IN REVIEW">IN REVIEW</option>
+              <option value="DONE">DONE</option>
+            </select>
+          </div>
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setIsAddingTask(false)}
+              className="px-3 py-1 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-3.5 py-1 rounded-xl bg-purple-600 text-white text-xs font-bold hover:bg-purple-700 cursor-pointer shadow-2xs"
+            >
+              Save Task
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Kanban Columns */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {columns.map((col) => (
-          <div
-            key={col.id}
-            id={`kanban-col-${col.id}`}
-            className="flex flex-col rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 p-4"
-          >
-            <div className="flex items-center justify-between mb-3.5">
-              <span className="font-semibold text-xs tracking-wider uppercase text-slate-700 dark:text-slate-300">
-                {col.title}
-              </span>
-              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${col.badgeClass}`}>
-                {col.items.length}
-              </span>
-            </div>
+        {columns.map((col) => {
+          const colTasks = filteredTasks.filter((t) => t.status === col.id);
 
-            <div className="space-y-3 flex-1 overflow-y-auto max-h-[600px] pr-1">
-              {col.items.length === 0 ? (
-                <div className="p-8 text-center text-xs text-slate-400 dark:text-slate-500 border border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
-                  No active pull requests in this stage
+          return (
+            <div
+              key={col.id}
+              className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200/80 space-y-3 flex flex-col"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${col.color}`}>
+                    {col.title}
+                  </span>
+                  <span className="text-xs font-bold text-slate-500">
+                    {colTasks.length}
+                  </span>
                 </div>
-              ) : (
-                col.items.map((pr) => {
-                  const latestReview = pr.reviews && pr.reviews.length > 0 ? pr.reviews[pr.reviews.length - 1] : null;
-                  const isBlocked = latestReview?.state === 'CHANGES_REQUESTED';
+              </div>
 
-                  return (
+              {/* Tasks List */}
+              <div className="space-y-2.5 flex-1 overflow-y-auto max-h-[600px]">
+                {colTasks.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-xl">
+                    No tasks in {col.title}
+                  </div>
+                ) : (
+                  colTasks.map((task) => (
                     <div
-                      key={pr.id}
-                      id={`pr-card-${pr.id}`}
-                      className="p-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs hover:shadow-md transition-all space-y-2.5"
+                      key={task.id}
+                      className="p-3.5 rounded-xl bg-white border border-slate-200/90 shadow-2xs space-y-2 hover:shadow-xs transition-shadow"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="text-xs font-mono font-medium text-slate-400">
-                          #{pr.number}
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-[10px] font-bold text-purple-700">
+                          {task.id}
                         </span>
-                        <div className="flex items-center gap-1.5">
-                          {pr.agent ? (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-300">
-                              <Bot className="w-3 h-3" />
-                              {pr.agent}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-                              <User className="w-3 h-3" />
-                              human
-                            </span>
-                          )}
-                        </div>
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                            task.projectStatus === 'ACTIVE'
+                              ? 'bg-blue-50 text-blue-700'
+                              : task.projectStatus === 'AT RISK'
+                              ? 'bg-red-50 text-red-700'
+                              : task.projectStatus === 'COMPLETED'
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : 'bg-slate-100 text-slate-700'
+                          }`}
+                        >
+                          {task.projectStatus}
+                        </span>
                       </div>
 
-                      <h4 className="text-xs font-semibold text-slate-900 dark:text-white leading-snug line-clamp-2">
-                        {pr.title}
+                      <h4 className="text-xs font-semibold text-slate-800 leading-snug">
+                        {task.title}
                       </h4>
 
-                      <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800/80">
-                        <span className="truncate max-w-[120px]">@{pr.user}</span>
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          <span>{new Date(pr.created_at).toLocaleDateString()}</span>
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px] text-slate-500">
+                        <div className="flex items-center gap-1 font-mono">
+                          <User className="w-3 h-3 text-slate-400" />
+                          <span>{task.assignee}</span>
                         </div>
+                        {task.agentTag && (
+                          <div className="flex items-center gap-1 font-semibold text-purple-700">
+                            <ToolIconRenderer id={task.agentTag.toLowerCase()} className="w-3 h-3" />
+                            <span>{task.agentTag.replace('_', ' ')}</span>
+                          </div>
+                        )}
                       </div>
-
-                      {isBlocked && (
-                        <div className="mt-2 pt-2 border-t border-amber-100 dark:border-amber-950 flex items-center justify-between">
-                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 dark:text-amber-400">
-                            <AlertTriangle className="w-3 h-3" />
-                            Changes Requested
-                          </span>
-                          <button
-                            onClick={() => onInspectBlocker(pr)}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 hover:bg-amber-100 transition-colors cursor-pointer"
-                          >
-                            <Sparkles className="w-2.5 h-2.5" />
-                            Analyze Blocker
-                          </button>
-                        </div>
-                      )}
                     </div>
-                  );
-                })
-              )}
+                  ))
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

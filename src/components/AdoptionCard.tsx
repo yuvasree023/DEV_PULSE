@@ -1,11 +1,29 @@
 import { useState } from 'react';
-import { ADOPTION_DISTRIBUTION } from '../mockData';
+import { AIToolMetric } from '../types';
 
-export function AdoptionCard() {
+interface AdoptionCardProps {
+  tools?: AIToolMetric[];
+  aiPercentage?: number;
+}
+
+export function AdoptionCard({ tools = [], aiPercentage = 100 }: AdoptionCardProps) {
   const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
 
-  // Calculate SVG pie slices
-  const total = ADOPTION_DISTRIBUTION.reduce((acc, curr) => acc + curr.percentage, 0);
+  const colors = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#6366f1', '#94a3b8'];
+
+  // Construct slices from real tools
+  const dataItems = tools.length > 0
+    ? tools.slice(0, 5).map((t, idx) => ({
+        category: t.agent,
+        percentage: t.pr_percentage,
+        color: colors[idx % colors.length],
+      }))
+    : [
+        { category: 'AI-Assisted', percentage: aiPercentage, color: '#8b5cf6' },
+        { category: 'Non-AI', percentage: Math.max(0, 100 - aiPercentage), color: '#e2e8f0' },
+      ];
+
+  const total = dataItems.reduce((acc, curr) => acc + curr.percentage, 0) || 1;
   let cumulativeAngle = 0;
 
   const radius = 64;
@@ -13,13 +31,13 @@ export function AdoptionCard() {
   const cx = 80;
   const cy = 80;
 
-  const slices = ADOPTION_DISTRIBUTION.map((item) => {
+  const slices = dataItems.map((item) => {
     const sliceAngle = (item.percentage / total) * 360;
     const startAngle = cumulativeAngle;
     const endAngle = cumulativeAngle + sliceAngle;
     cumulativeAngle += sliceAngle;
 
-    // Convert angles to radians (offset by -90 deg so it starts from 12 o'clock)
+    // Convert angles to radians (offset by -90 deg)
     const startRad = ((startAngle - 90) * Math.PI) / 180;
     const endRad = ((endAngle - 90) * Math.PI) / 180;
 
@@ -55,24 +73,27 @@ export function AdoptionCard() {
       id="adoption-card"
       className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col justify-between"
     >
-      <h2 className="text-base font-bold text-slate-800 tracking-tight mb-4">
-        Adoption
-      </h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-base font-bold text-slate-800 tracking-tight">
+          AI Tool PR Share
+        </h2>
+        <span className="text-[11px] text-slate-400 font-medium">Observed %</span>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 items-center gap-6">
         {/* Left: Big Metric */}
         <div className="space-y-1 pl-1">
-          <div className="text-5xl font-extrabold text-slate-900 tracking-tight">
-            70%
+          <div className="text-4xl font-extrabold text-slate-900 tracking-tight">
+            {aiPercentage}%
           </div>
-          <p className="text-xs font-medium text-slate-500 max-w-[180px] leading-relaxed">
-            of developers are actively using at least 1 AI tool
+          <p className="text-xs font-medium text-slate-500 max-w-[200px] leading-relaxed">
+            of pull requests in the dataset are authored with AI agent metadata
           </p>
         </div>
 
         {/* Right: Donut Chart + Legend */}
         <div className="flex items-center justify-between sm:justify-end gap-5">
-          <div className="relative w-36 h-36 flex items-center justify-center shrink-0">
+          <div className="relative w-32 h-32 flex items-center justify-center shrink-0">
             <svg viewBox="0 0 160 160" className="w-full h-full transform -rotate-45 drop-shadow-xs">
               {slices.map((slice) => (
                 <path
@@ -88,8 +109,8 @@ export function AdoptionCard() {
           </div>
 
           {/* Legend */}
-          <div className="space-y-2 text-xs font-medium">
-            {ADOPTION_DISTRIBUTION.map((item) => (
+          <div className="space-y-1.5 text-xs font-medium max-w-[140px] truncate">
+            {dataItems.map((item) => (
               <div
                 key={item.category}
                 className="flex items-center gap-2 cursor-pointer text-slate-600 hover:text-slate-900"
@@ -97,17 +118,13 @@ export function AdoptionCard() {
                 onMouseLeave={() => setHoveredCategory(null)}
               >
                 <span
-                  className="w-3 h-3 rounded-md shrink-0"
+                  className="w-2.5 h-2.5 rounded-sm shrink-0"
                   style={{ backgroundColor: item.color }}
                 />
-                <span className={hoveredCategory === item.category ? 'font-bold text-slate-900' : ''}>
-                  {item.category}
+                <span className="truncate">{item.category}</span>
+                <span className="text-slate-400 text-[11px] ml-auto">
+                  {item.percentage}%
                 </span>
-                {hoveredCategory === item.category && (
-                  <span className="text-purple-600 font-bold ml-auto pl-1">
-                    {item.percentage}%
-                  </span>
-                )}
               </div>
             ))}
           </div>

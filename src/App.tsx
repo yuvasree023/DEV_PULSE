@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TopNav } from './components/TopNav';
 import { LeftSidebar } from './components/LeftSidebar';
 import { CrossToolImpactView } from './components/CrossToolImpactView';
@@ -9,17 +9,29 @@ import { KanbanBoard } from './components/KanbanBoard';
 import { RepositoriesView } from './components/RepositoriesView';
 import { APIInspector } from './components/APIInspector';
 import { AIInsightsModal } from './components/AIInsightsModal';
-import { INITIAL_REPOSITORIES, SAMPLE_PRS } from './mockData';
 import { PullRequest } from './types';
+import { SAMPLE_PRS } from './mockData';
+import { api } from './api';
 
 export default function App() {
   const [activeNav, setActiveNav] = useState('ai-impact');
   const [currentView, setCurrentView] = useState('cross-tool-impact');
-  const [selectedTool, setSelectedTool] = useState('copilot');
+  const [selectedTool, setSelectedTool] = useState('all');
   const [isInsightsOpen, setIsInsightsOpen] = useState(false);
   const [inspectedPr, setInspectedPr] = useState<PullRequest | null>(null);
-  const [repositories] = useState(INITIAL_REPOSITORIES);
-  const [prs] = useState<PullRequest[]>(SAMPLE_PRS);
+  const [prs, setPrs] = useState<PullRequest[]>(SAMPLE_PRS);
+
+  useEffect(() => {
+    api.getPullRequests(50)
+      .then((data) => {
+        if (data.pull_requests && data.pull_requests.length > 0) {
+          setPrs(data.pull_requests);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not fetch real PRs for kanban, using fallback:', err);
+      });
+  }, []);
 
   const handleInspectBlocker = (pr: PullRequest) => {
     setInspectedPr(pr);
@@ -31,17 +43,27 @@ export default function App() {
     setIsInsightsOpen(true);
   };
 
+  const handleSelectNav = (nav: string) => {
+    setActiveNav(nav);
+    if (nav === 'home' || nav === 'ai-impact') {
+      setCurrentView('cross-tool-impact');
+    } else if (nav === 'teams') {
+      setCurrentView('manage-adoption');
+    } else if (nav === 'people') {
+      setCurrentView('enable-users');
+    } else if (nav === 'delivery') {
+      setCurrentView('kanban');
+    } else if (nav === 'devfinops') {
+      setCurrentView('maximize-impact');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f8f9fc] text-slate-800 antialiased font-sans flex flex-col">
-      {/* Top Navigation Bar with exact aesthetic from reference image */}
+      {/* Top Navigation Bar with brand mark */}
       <TopNav
         activeNav={activeNav}
-        onSelectNav={(nav) => {
-          setActiveNav(nav);
-          if (nav === 'ai-impact') {
-            setCurrentView('cross-tool-impact');
-          }
-        }}
+        onSelectNav={handleSelectNav}
         onOpenAiInsights={handleOpenGeneralInsights}
       />
 
@@ -85,10 +107,10 @@ export default function App() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-                      PR Cycle & Code Review Kanban
+                      Task Progression & Review Kanban
                     </h1>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Real-time pull request progression across human and AI-assisted workflows
+                      Operational task management isolated from historical dataset analytics
                     </p>
                   </div>
                 </div>
@@ -98,28 +120,12 @@ export default function App() {
 
             {currentView === 'repos' && (
               <div className="space-y-4">
-                <div>
-                  <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-                    Monitored Repositories
-                  </h1>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Repository-level telemetry and AI assistance penetration
-                  </p>
-                </div>
-                <RepositoriesView repositories={repositories} />
+                <RepositoriesView />
               </div>
             )}
 
             {currentView === 'api-etl' && (
               <div className="space-y-4">
-                <div>
-                  <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-                    Backend & Polars ETL Pipeline
-                  </h1>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    FastAPI / Express service endpoints and Apache Parquet data warehouse schemas
-                  </p>
-                </div>
                 <APIInspector />
               </div>
             )}
@@ -127,7 +133,7 @@ export default function App() {
         </main>
       </div>
 
-      {/* Gemini AI Insights & Blocker Diagnostics Modal */}
+      {/* Grounded Gemini Explanation Modal */}
       <AIInsightsModal
         isOpen={isInsightsOpen}
         onClose={() => setIsInsightsOpen(false)}

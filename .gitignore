@@ -6,3 +6,20 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Python & Databases
+__pycache__/
+*.py[cod]
+*$py.class
+*.db
+*.sqlite3
+
+# Temporary & Upload directories
+uploads/
+scratch_test_data/
+~$*
+
+# Large dataset files (>100MB GitHub limit)
+pull_request.json
+pr_reviews*.json
+*.parquet

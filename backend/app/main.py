@@ -1,20 +1,45 @@
 import logging
 import sys
+import os
+
+# Ensure backend and root paths are in sys.path
+backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+root_dir = os.path.dirname(backend_dir)
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
+
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.config import settings
-from app.database import engine, Base, check_db_connection
-from app.routers import (
-    analytics_router,
-    tasks_router,
-    ai_insights_router,
-    pull_requests_router,
-    repositories_router,
-)
+try:
+    from app.config import settings
+    from app.database import engine, Base, check_db_connection
+    from app.services.data_loader import data_loader
+    from app.routers import (
+        analytics_router,
+        tasks_router,
+        ai_insights_router,
+        pull_requests_router,
+        repositories_router,
+    )
+    from app.routers.dashboard import router as dashboard_router
+except ImportError:
+    from backend.app.config import settings
+    from backend.app.database import engine, Base, check_db_connection
+    from backend.app.services.data_loader import data_loader
+    from backend.app.routers import (
+        analytics_router,
+        tasks_router,
+        ai_insights_router,
+        pull_requests_router,
+        repositories_router,
+    )
+    from backend.app.routers.dashboard import router as dashboard_router
 
 # Configure logging
 logging.basicConfig(
@@ -27,14 +52,23 @@ logger = logging.getLogger("app.main")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan handler: run startup checks and cleanup on shutdown."""
+    """Application lifespan handler: run startup checks and dataset loading."""
     logger.info(f"Starting {settings.APP_NAME} in '{settings.ENVIRONMENT}' environment...")
-    # Create tables if not already created
+    
+    # Initialize Parquet dataset
+    try:
+        data_loader.load_dataset()
+        logger.info("Parquet dataset successfully loaded and validated.")
+    except Exception as exc:
+        logger.warning(f"Could not preload default parquet dataset at startup: {exc}")
+
+    # Create DB tables if not already created
     try:
         Base.metadata.create_all(bind=engine)
         logger.info("Database schemas verified.")
     except Exception as exc:
         logger.error(f"Error during schema validation: {exc}")
+        
     yield
     logger.info("Shutting down application...")
 
@@ -42,8 +76,8 @@ async def lifespan(app: FastAPI):
 # FastAPI application instance
 app = FastAPI(
     title=settings.APP_NAME,
-    description="Backend API for AI Impact & Developer Productivity Dashboard with Gemini 2.0 Flash integration",
-    version="1.0.0",
+    description="Real Data-Backed AI Impact & Developer Productivity Analytics Backend",
+    version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
@@ -52,14 +86,14 @@ app = FastAPI(
 # Configure CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS if isinstance(settings.CORS_ORIGINS, list) else ["*"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# Health check endpoint for Railway/Render/Docker
+# Health check endpoint
 @app.get("/health", tags=["Health"])
 def health_check():
     """Deployment and service health check endpoint."""
@@ -69,11 +103,16 @@ def health_check():
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "db_connected": is_connected,
         "environment": settings.ENVIRONMENT,
+        "dataset_loaded": data_loader.df_prs is not None and len(data_loader.df_prs) > 0
     }
 
 
-# Register all /api/v1 routers
+# Register all /api core endpoints
+app.include_router(dashboard_router, prefix="/api")
+
+# Register /api/v1 legacy routers & aliases
 api_v1_prefix = "/api/v1"
+app.include_router(dashboard_router, prefix=api_v1_prefix)
 app.include_router(analytics_router, prefix=api_v1_prefix)
 app.include_router(tasks_router, prefix=api_v1_prefix)
 app.include_router(ai_insights_router, prefix=api_v1_prefix)
@@ -86,8 +125,8 @@ def root_endpoint():
     """Root metadata response."""
     return {
         "service": settings.APP_NAME,
-        "version": "1.0.0",
-        "api_v1": "/api/v1",
+        "version": "2.0.0",
+        "api": "/api",
         "docs": "/docs",
         "health": "/health",
     }
