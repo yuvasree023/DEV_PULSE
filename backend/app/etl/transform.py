@@ -1,6 +1,9 @@
 import logging
 from typing import Dict, Any, Tuple
-import polars as pl
+try:
+    import polars as pl
+except ImportError:
+    pl = None
 
 logger = logging.getLogger(__name__)
 

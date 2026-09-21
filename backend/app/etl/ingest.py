@@ -4,7 +4,10 @@ import logging
 import argparse
 from pathlib import Path
 from typing import Dict, Any, List, Type
-import polars as pl
+try:
+    import polars as pl
+except ImportError:
+    pl = None
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
