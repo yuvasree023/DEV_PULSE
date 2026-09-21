@@ -51,7 +51,7 @@ def get_kpis_endpoint(
 
 @router.get("/cycle-time", response_model=List[CycleTimeItem])
 def get_cycle_time_endpoint(
-    granularity: str = Query("week", regex="^(day|week|month)$", description="Aggregation bucket"),
+    granularity: str = Query("week", pattern="^(day|week|month)$", description="Aggregation bucket"),
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
     agent: Optional[str] = Query(None),
@@ -90,7 +90,7 @@ def get_ai_impact_endpoint(
 
 @router.get("/throughput", response_model=List[ThroughputItem])
 def get_throughput_endpoint(
-    granularity: str = Query("week", regex="^(day|week|month)$"),
+    granularity: str = Query("week", pattern="^(day|week|month)$"),
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
     db: Session = Depends(get_db),

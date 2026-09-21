@@ -10,25 +10,91 @@ import {
   PullRequest
 } from './types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+// Standardized API Base URL supporting both VITE_API_URL (recommended) and VITE_API_BASE_URL
+export const API_BASE = import.meta.env.VITE_API_URL ?? import.meta.env.VITE_API_BASE_URL ?? '';
+
+export class ApiError extends Error {
+  status: number;
+  url: string;
+  endpoint: string;
+
+  constructor(message: string, status: number, url: string, endpoint: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.url = url;
+    this.endpoint = endpoint;
+  }
+}
 
 async function fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
+  const url = `${API_BASE}${endpoint}`;
   try {
     const response = await fetch(url, options);
     if (!response.ok) {
       const errorBody = await response.text();
-      throw new Error(`API error ${response.status}: ${errorBody || response.statusText}`);
+      const cleanBody = errorBody.length > 200 ? errorBody.slice(0, 200) + '...' : errorBody;
+      throw new ApiError(
+        `API error ${response.status} (${response.statusText}): ${cleanBody || 'No response body'} [Request: ${url}]`,
+        response.status,
+        url,
+        endpoint
+      );
     }
     return (await response.json()) as T;
   } catch (err: any) {
-    console.error(`Failed to fetch from ${endpoint}:`, err);
-    throw err;
+    if (err instanceof ApiError) {
+      console.error(`API Error on ${endpoint}:`, err);
+      throw err;
+    }
+    // Network / CORS / unreachable error
+    console.error(`Network or fetch failure for ${url}:`, err);
+    throw new ApiError(
+      `Failed to connect to ${url}: ${err.message || 'Network error / server unreachable'}`,
+      0,
+      url,
+      endpoint
+    );
   }
+}
+
+/**
+ * Cold-start helper with retry & exponential backoff (up to ~60s total)
+ * Especially useful for free-tier Render/Railway servers that sleep when idle.
+ */
+async function checkServerHealthWithRetry(
+  onProgress?: (elapsedSec: number, status: string) => void,
+  maxWaitMs = 60000
+): Promise<boolean> {
+  const startTime = Date.now();
+  let delayMs = 1500;
+
+  while (Date.now() - startTime < maxWaitMs) {
+    try {
+      const res = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(6000) });
+      if (res.ok) {
+        return true;
+      }
+    } catch {
+      // Ignored during wake-up polling
+    }
+
+    const elapsedSec = Math.round((Date.now() - startTime) / 1000);
+    if (onProgress) {
+      onProgress(elapsedSec, `Waking up backend server (${elapsedSec}s)...`);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    delayMs = Math.min(delayMs * 1.3, 5000);
+  }
+
+  return false;
 }
 
 export const api = {
   checkHealth: (): Promise<{ status: string }> => fetchJson<{ status: string }>('/health'),
+
+  checkServerHealthWithRetry,
 
   getOverview: (): Promise<OverviewMetrics> => fetchJson<OverviewMetrics>('/api/overview'),
   
@@ -65,14 +131,19 @@ export const api = {
     if (files.reviewsFile) formData.append('pr_reviews_file', files.reviewsFile);
     if (files.repoFile) formData.append('repository_file', files.repoFile);
 
-    const response = await fetch(`${API_BASE_URL}/api/upload-dataset`, {
+    const response = await fetch(`${API_BASE}/api/upload-dataset`, {
       method: 'POST',
       body: formData,
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Upload failed (${response.status}): ${errorText}`);
+      throw new ApiError(
+        `Upload failed (${response.status}): ${errorText}`,
+        response.status,
+        `${API_BASE}/api/upload-dataset`,
+        '/api/upload-dataset'
+      );
     }
 
     return response.json();

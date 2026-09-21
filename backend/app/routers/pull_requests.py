@@ -21,15 +21,15 @@ router = APIRouter(prefix="/pull-requests", tags=["Pull Requests"])
 def list_pull_requests(
     page: int = Query(1, ge=1, description="Page number"),
     per_page: int = Query(20, ge=1, le=100, description="Items per page"),
-    state: Optional[str] = Query(None, regex="^(open|closed|merged)$"),
+    state: Optional[str] = Query(None, pattern="^(open|closed|merged)$"),
     agent: Optional[str] = Query(None),
     user: Optional[str] = Query(None),
     repo_id: Optional[int] = Query(None),
     language: Optional[str] = Query(None),
     created_after: Optional[datetime] = Query(None),
     created_before: Optional[datetime] = Query(None),
-    sort_by: str = Query("created_at", regex="^(created_at|merged_at|closed_at|id|number)$"),
-    sort_order: str = Query("desc", regex="^(asc|desc)$"),
+    sort_by: str = Query("created_at", pattern="^(created_at|merged_at|closed_at|id|number)$"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$"),
     db: Session = Depends(get_db),
 ):
     """

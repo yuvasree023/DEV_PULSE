@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
 import { AIImpactMetrics, OverviewMetrics } from '../types';
-import { RefreshCw, AlertCircle, Clock, CheckCircle2, TrendingUp, Sparkles, UserCheck, Activity } from 'lucide-react';
+import { RefreshCw, Clock, CheckCircle2, TrendingUp, Sparkles, UserCheck, Activity } from 'lucide-react';
+import { ErrorCard } from './ErrorCard';
 
 export function AIImpactView() {
   const [impactData, setImpactData] = useState<AIImpactMetrics | null>(null);
@@ -44,19 +45,12 @@ export function AIImpactView() {
 
   if (error || !impactData || !overview) {
     return (
-      <div className="p-6 rounded-2xl bg-red-50 border border-red-200 text-red-800 space-y-3">
-        <div className="flex items-center gap-2 font-bold text-sm">
-          <AlertCircle className="w-5 h-5 text-red-600" />
-          <span>Error loading AI impact comparison</span>
-        </div>
-        <p className="text-xs text-red-700">{error || 'No impact data available'}</p>
-        <button
-          onClick={loadData}
-          className="px-3.5 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 transition-colors cursor-pointer"
-        >
-          Retry
-        </button>
-      </div>
+      <ErrorCard
+        title="Error loading AI impact telemetry"
+        error={error || 'No impact data available'}
+        onRetry={loadData}
+        isRetrying={loading}
+      />
     );
   }
 

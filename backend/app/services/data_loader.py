@@ -131,27 +131,37 @@ class DataLoader:
             self.schema_validation_errors["repository"] = missing_repo
             raise ValueError(f"{os.path.basename(repo_file)} is missing required columns: {missing_repo}")
 
-        # --- Data Cleaning & Preparation ---
-        
-        # Deduplication on primary keys
-        df_prs = df_prs_raw.drop_duplicates(subset=["id"]).copy()
-        df_reviews = df_reviews_raw.drop_duplicates(subset=["id"]).copy()
-        df_repos = df_repos_raw.drop_duplicates(subset=["id"]).copy()
+        # --- Data Cleaning & Memory Optimization ---
+        import gc
 
-        # Clean string/null fields
-        df_prs["title"] = df_prs["title"].fillna("Untitled PR").astype(str)
-        df_prs["body"] = df_prs["body"].fillna("").astype(str)
+        # Deduplication on primary keys and immediate garbage collection of raw frames
+        df_prs = df_prs_raw.drop_duplicates(subset=["id"]).copy()
+        del df_prs_raw
+        df_reviews = df_reviews_raw.drop_duplicates(subset=["id"]).copy()
+        del df_reviews_raw
+        df_repos = df_repos_raw.drop_duplicates(subset=["id"]).copy()
+        del df_repos_raw
+        gc.collect()
+
+        # Clean string/null fields and downcast for memory efficiency
+        df_prs["title"] = df_prs["title"].fillna("Untitled PR").astype(str).str.slice(0, 150)
+        # Truncate or drop body to avoid hundreds of megabytes in memory
+        if "body" in df_prs.columns:
+            df_prs["body"] = df_prs["body"].fillna("").astype(str).str.slice(0, 200)
+        else:
+            df_prs["body"] = ""
+
         df_prs["user"] = df_prs["user"].fillna("unknown_user").astype(str)
-        df_prs["user_id"] = pd.to_numeric(df_prs["user_id"], errors="coerce").fillna(0).astype(int)
-        df_prs["repo_id"] = pd.to_numeric(df_prs["repo_id"], errors="coerce").fillna(0).astype(int)
-        df_prs["state"] = df_prs["state"].fillna("closed").astype(str).str.lower()
+        df_prs["user_id"] = pd.to_numeric(df_prs["user_id"], errors="coerce").fillna(0).astype("int32")
+        df_prs["repo_id"] = pd.to_numeric(df_prs["repo_id"], errors="coerce").fillna(0).astype("int32")
+        df_prs["number"] = pd.to_numeric(df_prs.get("number", 0), errors="coerce").fillna(0).astype("int32")
+        df_prs["state"] = df_prs["state"].fillna("closed").astype(str).str.lower().astype("category")
 
         # Handle agent column: None, NaN, empty string, or lowercase string
-        df_prs["agent"] = df_prs["agent"].fillna("").astype(str).str.strip()
-        # Normalise empty-like strings
-        df_prs.loc[df_prs["agent"].str.lower().isin(["none", "nan", "null", ""]), "agent"] = ""
-        # is_ai_assisted: non-empty agent
-        df_prs["is_ai_assisted"] = df_prs["agent"].str.len() > 0
+        agent_clean = df_prs["agent"].fillna("").astype(str).str.strip()
+        agent_clean = agent_clean.replace(["none", "nan", "null", "None", "NaN", "NULL"], "")
+        df_prs["agent"] = agent_clean
+        df_prs["is_ai_assisted"] = (df_prs["agent"].str.len() > 0).astype(bool)
 
         # Parse Timestamps safely
         df_prs["created_dt"] = pd.to_datetime(df_prs["created_at"], errors="coerce", utc=True)
@@ -159,23 +169,23 @@ class DataLoader:
         df_prs["merged_dt"] = pd.to_datetime(df_prs["merged_at"], errors="coerce", utc=True)
 
         # Compute Cycle Time (hours) = merged_at - created_at for merged PRs
-        # Only valid where merged_dt >= created_dt
-        df_prs["is_merged"] = df_prs["merged_dt"].notnull()
+        df_prs["is_merged"] = df_prs["merged_dt"].notnull().astype(bool)
         df_prs["cycle_time_hours"] = np.nan
         merged_mask = df_prs["is_merged"] & (df_prs["merged_dt"] >= df_prs["created_dt"])
         df_prs.loc[merged_mask, "cycle_time_hours"] = (
             (df_prs.loc[merged_mask, "merged_dt"] - df_prs.loc[merged_mask, "created_dt"]).dt.total_seconds() / 3600.0
-        )
+        ).astype("float32")
 
-        # Reviews Data Cleaning
+        # Reviews Data Cleaning - drop review body to save ~80MB memory
+        if "body" in df_reviews.columns:
+            df_reviews = df_reviews.drop(columns=["body"])
         df_reviews["user"] = df_reviews["user"].fillna("anonymous").astype(str)
-        df_reviews["pr_id"] = pd.to_numeric(df_reviews["pr_id"], errors="coerce").fillna(0).astype(int)
-        df_reviews["state"] = df_reviews["state"].fillna("COMMENTED").astype(str)
+        df_reviews["pr_id"] = pd.to_numeric(df_reviews["pr_id"], errors="coerce").fillna(0).astype("int32")
+        df_reviews["id"] = pd.to_numeric(df_reviews["id"], errors="coerce").fillna(0).astype("int32")
+        df_reviews["state"] = df_reviews["state"].fillna("COMMENTED").astype(str).astype("category")
         df_reviews["submitted_dt"] = pd.to_datetime(df_reviews["submitted_at"], errors="coerce", utc=True)
 
-        # Compute First Review Time per PR:
-        # First review submitted_at - PR created_at
-        # Merge first review submitted_dt onto PRs
+        # Compute First Review Time per PR
         valid_reviews = df_reviews.dropna(subset=["submitted_dt"]).sort_values("submitted_dt")
         first_reviews = valid_reviews.groupby("pr_id").agg(
             first_review_dt=("submitted_dt", "first"),
@@ -187,31 +197,35 @@ class DataLoader:
         if "pr_id" in df_prs.columns:
             df_prs = df_prs.drop(columns=["pr_id"])
 
-        df_prs["review_count"] = df_prs["review_count"].fillna(0).astype(int)
+        del valid_reviews, first_reviews
+        gc.collect()
+
+        df_prs["review_count"] = df_prs["review_count"].fillna(0).astype("int32")
         df_prs["review_time_hours"] = np.nan
         has_review_mask = df_prs["first_review_dt"].notnull() & (df_prs["first_review_dt"] >= df_prs["created_dt"])
         df_prs.loc[has_review_mask, "review_time_hours"] = (
             (df_prs.loc[has_review_mask, "first_review_dt"] - df_prs.loc[has_review_mask, "created_dt"]).dt.total_seconds() / 3600.0
-        )
+        ).astype("float32")
 
         # Repositories Data Cleaning
         df_repos["full_name"] = df_repos["full_name"].fillna("Unknown Repo").astype(str)
-        df_repos["language"] = df_repos["language"].fillna("Unknown").astype(str)
-        df_repos["stars"] = pd.to_numeric(df_repos["stars"], errors="coerce").fillna(0).astype(int)
-        df_repos["forks"] = pd.to_numeric(df_repos["forks"], errors="coerce").fillna(0).astype(int)
-        df_repos["license"] = df_repos["license"].fillna("None").astype(str)
+        df_repos["language"] = df_repos["language"].fillna("Unknown").astype(str).astype("category")
+        df_repos["stars"] = pd.to_numeric(df_repos["stars"], errors="coerce").fillna(0).astype("int32")
+        df_repos["forks"] = pd.to_numeric(df_repos["forks"], errors="coerce").fillna(0).astype("int32")
+        df_repos["license"] = df_repos["license"].fillna("None").astype(str).astype("category")
 
         self.df_prs = df_prs
         self.df_reviews = df_reviews
         self.df_repos = df_repos
+        gc.collect()
 
         self.dataset_meta = {
             "total_prs": int(len(df_prs)),
             "total_reviews": int(len(df_reviews)),
             "total_repos": int(len(df_repos)),
-            "pr_columns": list(df_prs_raw.columns),
-            "review_columns": list(df_reviews_raw.columns),
-            "repo_columns": list(df_repos_raw.columns),
+            "pr_columns": list(df_prs.columns),
+            "review_columns": list(df_reviews.columns),
+            "repo_columns": list(df_repos.columns),
             "pr_file": os.path.basename(pr_file),
             "reviews_file": os.path.basename(reviews_file),
             "repo_file": os.path.basename(repo_file),
@@ -220,6 +234,18 @@ class DataLoader:
         logger.info(
             f"Successfully loaded {len(df_prs)} PRs, {len(df_reviews)} reviews, {len(df_repos)} repos."
         )
+
+        try:
+            from app.services.metrics import metrics_service
+            metrics_service.clear_cache()
+        except Exception:
+            pass
+        try:
+            from app.services.ml import ml_service
+            ml_service.clear_cache()
+        except Exception:
+            pass
+
         return self.dataset_meta
 
     def get_data(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:

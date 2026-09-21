@@ -15,7 +15,12 @@ logger = logging.getLogger("app.services.ml")
 
 class MLInsightsService:
     def __init__(self):
-        pass
+        self._cache: Dict[str, Any] = {}
+
+    def clear_cache(self):
+        """Clear cached ML clustering results."""
+        self._cache.clear()
+        logger.info("MLInsightsService cache cleared.")
 
     def run_developer_segmentation(self, n_clusters: int = 4) -> Dict[str, Any]:
         """
@@ -27,6 +32,10 @@ class MLInsightsService:
         - merge rate (%)
         - review count
         """
+        cache_key = f"segmentation_{n_clusters}"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
         df_prs, _, _ = data_loader.get_data()
         
         if df_prs is None or len(df_prs) == 0:
@@ -159,7 +168,7 @@ class MLInsightsService:
         # Feature variance explained by PCA
         explained_var = [round(float(v) * 100, 1) for v in pca.explained_variance_ratio_]
 
-        return {
+        res = {
             "model": "K-Means Clustering (scikit-learn)",
             "total_developers": int(len(dev_stats)),
             "n_clusters": n_clusters,
@@ -174,6 +183,8 @@ class MLInsightsService:
             "clusters": clusters_summary,
             "disclaimer": "Unsupervised segmentation groups developers by statistical workflow patterns without ranking or value judgments."
         }
+        self._cache[cache_key] = res
+        return res
 
 
 ml_service = MLInsightsService()

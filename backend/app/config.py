@@ -21,9 +21,9 @@ class Settings(BaseSettings):
 
     # CORS Origins
     CORS_ORIGINS: Union[List[str], str] = [
-        "http://localhost:3000",
+        "https://dev-pulse-lhnv-nine.vercel.app",
         "http://localhost:5173",
-        "https://your-frontend.vercel.app",
+        "http://localhost:3000",
         "*",
     ]
 

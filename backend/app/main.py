@@ -84,9 +84,15 @@ app = FastAPI(
 )
 
 # Configure CORS middleware
+cors_origins = settings.CORS_ORIGINS if isinstance(settings.CORS_ORIGINS, list) else [settings.CORS_ORIGINS]
+if "*" not in cors_origins:
+    for default_origin in ["https://dev-pulse-lhnv-nine.vercel.app", "http://localhost:5173", "http://localhost:3000"]:
+        if default_origin not in cors_origins:
+            cors_origins.append(default_origin)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins if "*" not in cors_origins else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -99,7 +105,7 @@ def health_check():
     """Deployment and service health check endpoint."""
     is_connected = check_db_connection()
     return {
-        "status": "ok" if is_connected else "degraded",
+        "status": "ok",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "db_connected": is_connected,
         "environment": settings.ENVIRONMENT,

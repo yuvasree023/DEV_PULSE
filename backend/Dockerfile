@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install system dependencies (including build tools for any C extensions like psycopg2)
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend application source code and migrations
+# Copy backend application source code, dataset, and migrations
 COPY app/ ./app/
 COPY alembic/ ./alembic/
 COPY alembic.ini .
@@ -25,5 +25,5 @@ COPY data/ ./data/
 
 EXPOSE 8000
 
-# Default entrypoint for containers
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Consistent start command using PORT env var for Render/Railway container runtime
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

@@ -12,10 +12,18 @@ logger = logging.getLogger("app.services.metrics")
 
 class MetricsService:
     def __init__(self):
-        pass
+        self._cache: Dict[str, Any] = {}
+
+    def clear_cache(self):
+        """Clear all cached metric aggregations."""
+        self._cache.clear()
+        logger.info("MetricsService cache cleared.")
 
     def get_overview_metrics(self) -> Dict[str, Any]:
         """Compute top-level summary metrics across the entire dataset."""
+        if "overview" in self._cache:
+            return self._cache["overview"]
+
         df_prs, df_reviews, df_repos = data_loader.get_data()
 
         total_prs = len(df_prs)
@@ -102,7 +110,7 @@ class MetricsService:
                     "non_ai_prs": int(row["total_prs"] - row["ai_prs"]),
                 })
 
-        return {
+        res = {
             "total_prs": total_prs,
             "merged_prs": merged_prs,
             "merge_rate": merge_rate,
@@ -126,9 +134,14 @@ class MetricsService:
             "weekly_throughput": throughput_series,
             "disclaimer": "Observed association — not causal evidence"
         }
+        self._cache["overview"] = res
+        return res
 
     def get_ai_impact_metrics(self) -> Dict[str, Any]:
         """Compute detailed AI vs Non-AI comparison."""
+        if "ai_impact" in self._cache:
+            return self._cache["ai_impact"]
+
         overview = self.get_overview_metrics()
         df_prs, _, _ = data_loader.get_data()
 
@@ -167,7 +180,7 @@ class MetricsService:
         non_ai_merged = int(df_prs.loc[~ai_mask, "is_merged"].sum())
         non_ai_merge_rate = round((non_ai_merged / non_ai_total) * 100, 2) if non_ai_total > 0 else 0.0
 
-        return {
+        res = {
             "comparison_title": "Observed comparison: AI-assisted vs non-AI PRs",
             "disclaimer": "Observed association — not causal evidence",
             "summary": {
@@ -186,9 +199,14 @@ class MetricsService:
             },
             "trend": trend_data,
         }
+        self._cache["ai_impact"] = res
+        return res
 
     def get_ai_tools_metrics(self) -> Dict[str, Any]:
         """Compute real metrics per AI tool (`agent`)."""
+        if "ai_tools" in self._cache:
+            return self._cache["ai_tools"]
+
         df_prs, _, _ = data_loader.get_data()
         total_prs = len(df_prs)
 
@@ -228,14 +246,20 @@ class MetricsService:
         # Sort descending by PR count
         tools_list.sort(key=lambda x: x["pr_count"], reverse=True)
 
-        return {
+        res = {
             "total_prs": total_prs,
             "tools": tools_list,
             "disclaimer": "Metrics represent observed dataset records per agent value without ranking or judgment."
         }
+        self._cache["ai_tools"] = res
+        return res
 
     def get_people_metrics(self, limit: int = 100) -> Dict[str, Any]:
         """Compute metrics per developer (`user`)."""
+        cache_key = f"people_{limit}"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
         df_prs, _, _ = data_loader.get_data()
 
         dev_grouped = df_prs.groupby("user").agg(
@@ -278,14 +302,20 @@ class MetricsService:
                 "avg_review_time_hours": float(row["avg_review_time_hours"]) if pd.notnull(row["avg_review_time_hours"]) else None,
             })
 
-        return {
+        res = {
             "total_developers": int(len(dev_grouped)),
             "developers": developers,
             "disclaimer": "Neutral developer statistics aggregated directly from PR activity."
         }
+        self._cache[cache_key] = res
+        return res
 
     def get_projects_metrics(self, limit: int = 100) -> Dict[str, Any]:
         """Compute metrics per repository by joining pull_request.repo_id -> repository.id."""
+        cache_key = f"projects_{limit}"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+
         df_prs, _, df_repos = data_loader.get_data()
 
         # Group PRs by repo_id
@@ -354,12 +384,14 @@ class MetricsService:
                 "ai_assisted_pct": round((ai_p / tot_p) * 100, 2) if tot_p > 0 else 0.0
             })
 
-        return {
+        res = {
             "total_repositories": int(len(df_repos)),
             "projects": projects,
             "languages": languages,
             "disclaimer": "Repository metrics grounded in repository and pull request datasets."
         }
+        self._cache[cache_key] = res
+        return res
 
     def get_pull_requests(self, limit: int = 100, state: Optional[str] = None) -> Dict[str, Any]:
         """Return real pull requests directly from the parquet dataset."""

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { OverviewMetrics, AIToolsResponse } from '../types';
 import { api } from '../api';
 import { GitPullRequest, Clock, CheckCircle2, Sparkles, TrendingUp, RefreshCw, AlertCircle, Activity } from 'lucide-react';
+import { ErrorCard } from './ErrorCard';
 import { ToolIconRenderer } from './ToolIcons';
 
 interface OverviewViewProps {
@@ -51,19 +52,12 @@ export function OverviewView({ onNavigateToTools, onNavigateToImpact, onOpenAiIn
 
   if (error || !overview) {
     return (
-      <div className="p-6 rounded-2xl bg-red-50 border border-red-200 text-red-800 space-y-3">
-        <div className="flex items-center gap-2 font-bold text-sm">
-          <AlertCircle className="w-5 h-5 text-red-600" />
-          <span>Error loading overview metrics</span>
-        </div>
-        <p className="text-xs text-red-700">{error || 'No overview data available'}</p>
-        <button
-          onClick={loadData}
-          className="px-3.5 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 transition-colors cursor-pointer"
-        >
-          Retry
-        </button>
-      </div>
+      <ErrorCard
+        title="Error loading overview metrics"
+        error={error || 'No overview data available'}
+        onRetry={loadData}
+        isRetrying={loading}
+      />
     );
   }
 
