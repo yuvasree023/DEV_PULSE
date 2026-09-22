@@ -4,6 +4,7 @@ import { api } from '../api';
 import { GitPullRequest, Clock, CheckCircle2, Sparkles, TrendingUp, RefreshCw, AlertCircle, Activity } from 'lucide-react';
 import { ErrorCard } from './ErrorCard';
 import { ToolIconRenderer } from './ToolIcons';
+import { ImpactVsNoToolCard } from './ImpactVsNoToolCard';
 
 interface OverviewViewProps {
   onNavigateToTools?: () => void;
@@ -17,6 +18,7 @@ export function OverviewView({ onNavigateToTools, onNavigateToImpact, onOpenAiIn
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hoveredPoint, setHoveredPoint] = useState<any | null>(null);
+  const [chartMode, setChartMode] = useState<'radar' | 'throughput'>('radar');
 
   const loadData = async () => {
     setLoading(true);
@@ -171,80 +173,105 @@ export function OverviewView({ onNavigateToTools, onNavigateToImpact, onOpenAiIn
 
       {/* Main Row: AI Tool Usage Trend + Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Weekly Throughput & AI Usage Trend (2 Cols) */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-purple-600" />
-              <h2 className="text-base font-bold text-slate-800 tracking-tight">
-                AI Tool Usage Trend & Weekly Throughput
-              </h2>
-            </div>
-            <span className="text-[11px] text-slate-400 font-medium">Weekly activity</span>
-          </div>
-
-          <div className="space-y-4">
-            <div className="h-44 flex items-end gap-2 pt-4 border-b border-slate-100 pb-2">
-              {recentWeeks.length === 0 ? (
-                <div className="w-full h-full flex items-center justify-center text-xs text-slate-400">
-                  No historical throughput data available in dataset.
+        {/* Impact vs. No Tool Radar Profile (matching user attached image) or Weekly Throughput Toggle */}
+        <div className="lg:col-span-2">
+          {chartMode === 'radar' ? (
+            <ImpactVsNoToolCard
+              onToggleView={() => setChartMode('throughput')}
+              activeView="radar"
+            />
+          ) : (
+            <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex flex-col justify-between h-full">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-purple-600" />
+                  <h2 className="text-base font-bold text-slate-800 tracking-tight">
+                    AI Tool Usage Trend & Weekly Throughput
+                  </h2>
                 </div>
-              ) : (
-                recentWeeks.map((week) => {
-                  const totalHeightPct = Math.max(12, Math.round((week.total_prs / maxPRs) * 100));
-                  const isHovered = hoveredPoint?.period === week.period;
-                  const label = week.period.split('/')[0]?.slice(5) || week.period;
-
-                  return (
-                    <div
-                      key={week.period}
-                      className="flex-1 h-full flex flex-col justify-end items-center group relative cursor-pointer"
-                      onMouseEnter={() => setHoveredPoint(week)}
-                      onMouseLeave={() => setHoveredPoint(null)}
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-400 font-medium">Weekly activity</span>
+                  <div className="flex items-center p-0.5 bg-slate-100 rounded-lg border border-slate-200/60">
+                    <button
+                      onClick={() => setChartMode('radar')}
+                      className="px-2.5 py-1 text-[11px] font-semibold rounded-md text-slate-500 hover:text-slate-800 cursor-pointer"
                     >
-                      {/* Bar Value on Hover */}
-                      <span className={`text-[10px] font-bold mb-1 transition-opacity ${isHovered ? 'text-purple-700 opacity-100' : 'text-slate-400 opacity-0 group-hover:opacity-100'}`}>
-                        {week.total_prs}
-                      </span>
+                      Radar Profile
+                    </button>
+                    <button
+                      onClick={() => setChartMode('throughput')}
+                      className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white text-purple-700 shadow-2xs cursor-pointer"
+                    >
+                      Throughput
+                    </button>
+                  </div>
+                </div>
+              </div>
 
-                      {/* Bar */}
-                      <div
-                        className={`w-full rounded-t-md transition-all duration-200 ${
-                          isHovered ? 'bg-purple-700 shadow-md ring-2 ring-purple-300' : 'bg-gradient-to-t from-purple-600 to-indigo-500 hover:from-purple-700 hover:to-indigo-600'
-                        }`}
-                        style={{ height: `${totalHeightPct}%`, minHeight: '8px' }}
-                      />
-
-                      {/* Tooltip */}
-                      {isHovered && (
-                        <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-semibold px-2.5 py-1.5 rounded-lg shadow-xl whitespace-nowrap z-30 space-y-0.5 border border-slate-700 pointer-events-none">
-                          <div className="font-bold text-slate-200">{week.period}</div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
-                            <span>Total PRs: {week.total_prs.toLocaleString()}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-emerald-400">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                            <span>Merged: {week.merged_prs.toLocaleString()}</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* X-axis week label */}
-                      <span className="text-[9px] text-slate-400 font-mono mt-1.5 truncate max-w-full select-none">
-                        {label}
-                      </span>
+              <div className="space-y-4">
+                <div className="h-44 flex items-end gap-2 pt-4 border-b border-slate-100 pb-2">
+                  {recentWeeks.length === 0 ? (
+                    <div className="w-full h-full flex items-center justify-center text-xs text-slate-400">
+                      No historical throughput data available in dataset.
                     </div>
-                  );
-                })
-              )}
-            </div>
+                  ) : (
+                    recentWeeks.map((week) => {
+                      const totalHeightPct = Math.max(12, Math.round((week.total_prs / maxPRs) * 100));
+                      const isHovered = hoveredPoint?.period === week.period;
+                      const label = week.period.split('/')[0]?.slice(5) || week.period;
 
-            <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
-              <span>Past 12 weeks activity</span>
-              <span className="font-semibold text-purple-700">{overview.total_prs.toLocaleString()} total observed PRs</span>
+                      return (
+                        <div
+                          key={week.period}
+                          className="flex-1 h-full flex flex-col justify-end items-center group relative cursor-pointer"
+                          onMouseEnter={() => setHoveredPoint(week)}
+                          onMouseLeave={() => setHoveredPoint(null)}
+                        >
+                          {/* Bar Value on Hover */}
+                          <span className={`text-[10px] font-bold mb-1 transition-opacity ${isHovered ? 'text-purple-700 opacity-100' : 'text-slate-400 opacity-0 group-hover:opacity-100'}`}>
+                            {week.total_prs}
+                          </span>
+
+                          {/* Bar */}
+                          <div
+                            className={`w-full rounded-t-md transition-all duration-200 ${
+                              isHovered ? 'bg-purple-700 shadow-md ring-2 ring-purple-300' : 'bg-gradient-to-t from-purple-600 to-indigo-500 hover:from-purple-700 hover:to-indigo-600'
+                            }`}
+                            style={{ height: `${totalHeightPct}%`, minHeight: '8px' }}
+                          />
+
+                          {/* Tooltip */}
+                          {isHovered && (
+                            <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-semibold px-2.5 py-1.5 rounded-lg shadow-xl whitespace-nowrap z-30 space-y-0.5 border border-slate-700 pointer-events-none">
+                              <div className="font-bold text-slate-200">{week.period}</div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                                <span>Total PRs: {week.total_prs.toLocaleString()}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 text-emerald-400">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                <span>Merged: {week.merged_prs.toLocaleString()}</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* X-axis week label */}
+                          <span className="text-[9px] text-slate-400 font-mono mt-1.5 truncate max-w-full select-none">
+                            {label}
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                  <span>Past 12 weeks activity</span>
+                  <span className="font-semibold text-purple-700">{overview.total_prs.toLocaleString()} total observed PRs</span>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* AI Tool Distribution Breakdown (1 Col) */}
