@@ -62,7 +62,7 @@ export function OverviewView({ onNavigateToTools, onNavigateToImpact, onOpenAiIn
   }
 
   const recentWeeks = overview.weekly_throughput?.slice(-12) || [];
-  const maxPRs = Math.max(...recentWeeks.map((w) => w.total_prs), 50);
+  const maxPRs = Math.max(...recentWeeks.map((w) => w.total_prs), 1);
 
   const kpis = [
     {
@@ -184,38 +184,56 @@ export function OverviewView({ onNavigateToTools, onNavigateToImpact, onOpenAiIn
           </div>
 
           <div className="space-y-4">
-            <div className="h-44 flex items-end gap-1.5 pt-4 border-b border-slate-100 pb-2">
+            <div className="h-44 flex items-end gap-2 pt-4 border-b border-slate-100 pb-2">
               {recentWeeks.length === 0 ? (
                 <div className="w-full h-full flex items-center justify-center text-xs text-slate-400">
                   No historical throughput data available in dataset.
                 </div>
               ) : (
                 recentWeeks.map((week) => {
-                  const totalHeightPct = Math.max(8, Math.round((week.total_prs / maxPRs) * 100));
+                  const totalHeightPct = Math.max(12, Math.round((week.total_prs / maxPRs) * 100));
                   const isHovered = hoveredPoint?.period === week.period;
+                  const label = week.period.split('/')[0]?.slice(5) || week.period;
 
                   return (
                     <div
                       key={week.period}
-                      className="flex-1 flex flex-col items-center gap-1 group relative cursor-pointer"
+                      className="flex-1 h-full flex flex-col justify-end items-center group relative cursor-pointer"
                       onMouseEnter={() => setHoveredPoint(week)}
                       onMouseLeave={() => setHoveredPoint(null)}
                     >
+                      {/* Bar Value on Hover */}
+                      <span className={`text-[10px] font-bold mb-1 transition-opacity ${isHovered ? 'text-purple-700 opacity-100' : 'text-slate-400 opacity-0 group-hover:opacity-100'}`}>
+                        {week.total_prs}
+                      </span>
+
+                      {/* Bar */}
                       <div
-                        className={`w-full rounded-t-md transition-all ${
-                          isHovered ? 'bg-purple-700' : 'bg-purple-500/85 hover:bg-purple-600'
+                        className={`w-full rounded-t-md transition-all duration-200 ${
+                          isHovered ? 'bg-purple-700 shadow-md ring-2 ring-purple-300' : 'bg-gradient-to-t from-purple-600 to-indigo-500 hover:from-purple-700 hover:to-indigo-600'
                         }`}
-                        style={{ height: `${totalHeightPct}%` }}
+                        style={{ height: `${totalHeightPct}%`, minHeight: '8px' }}
                       />
 
                       {/* Tooltip */}
                       {isHovered && (
-                        <div className="absolute -top-14 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-semibold px-2.5 py-1.5 rounded shadow-lg whitespace-nowrap z-30 space-y-0.5">
-                          <div className="font-bold">{week.period}</div>
-                          <div>Total: {week.total_prs.toLocaleString()} PRs</div>
-                          <div className="text-emerald-400">{week.merged_prs.toLocaleString()} merged</div>
+                        <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-semibold px-2.5 py-1.5 rounded-lg shadow-xl whitespace-nowrap z-30 space-y-0.5 border border-slate-700 pointer-events-none">
+                          <div className="font-bold text-slate-200">{week.period}</div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+                            <span>Total PRs: {week.total_prs.toLocaleString()}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-emerald-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                            <span>Merged: {week.merged_prs.toLocaleString()}</span>
+                          </div>
                         </div>
                       )}
+
+                      {/* X-axis week label */}
+                      <span className="text-[9px] text-slate-400 font-mono mt-1.5 truncate max-w-full select-none">
+                        {label}
+                      </span>
                     </div>
                   );
                 })

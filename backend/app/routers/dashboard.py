@@ -97,10 +97,14 @@ def get_people(limit: int = Query(100, ge=1, le=1000)):
 def get_projects(limit: int = Query(100, ge=1, le=1000)):
     try:
         if settings.USE_PRECOMPUTED:
-            payload = load_precomputed().get("projects", {"repositories": [], "languages": [], "disclaimer": ""})
-            repos = payload.get("repositories", [])[:limit]
+            payload = load_precomputed().get("projects", {})
+            repos = payload.get("projects") or payload.get("repositories") or []
+            repos_slice = repos[:limit]
+            total_repos = payload.get("total_repositories", len(repos))
             return {
-                "repositories": repos,
+                "total_repositories": total_repos,
+                "projects": repos_slice,
+                "repositories": repos_slice,
                 "languages": payload.get("languages", []),
                 "disclaimer": payload.get("disclaimer", "Repository metrics grounded in repository and pull request datasets.")
             }

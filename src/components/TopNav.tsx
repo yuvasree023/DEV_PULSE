@@ -57,8 +57,8 @@ export function TopNav({
           </div>
         </div>
 
-        {/* Primary Product Navigation Tabs */}
-        <nav className="hidden md:flex items-center gap-1">
+        {/* Mobile-only Navigation Tabs (desktop uses LeftSidebar exclusively to eliminate duplicate nav) */}
+        <nav className="flex md:hidden items-center gap-1 overflow-x-auto py-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeNav === item.id;
@@ -66,9 +66,9 @@ export function TopNav({
             return (
               <button
                 key={item.id}
-                id={`nav-item-${item.id}`}
+                id={`mobile-nav-item-${item.id}`}
                 onClick={() => onSelectNav(item.id)}
-                className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
                   isActive
                     ? 'text-purple-700 bg-purple-50 font-bold border border-purple-100'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'

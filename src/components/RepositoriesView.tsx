@@ -31,8 +31,8 @@ export function RepositoriesView({ }: RepositoriesViewProps) {
     loadData();
   }, []);
 
-  const projects = projectsData?.projects || [];
-  const languages = ['all', ...(projectsData?.languages.map((l) => l.language) || [])];
+  const projects = projectsData?.projects || (projectsData as any)?.repositories || [];
+  const languages = ['all', ...(projectsData?.languages?.map((l) => l.language) || [])];
 
   const filtered = projects.filter((r) => {
     const matchesSearch =
@@ -80,7 +80,7 @@ export function RepositoriesView({ }: RepositoriesViewProps) {
               Projects & Repository Telemetry
             </h2>
             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800">
-              {projectsData?.total_repositories.toLocaleString()} Repositories
+              {(projectsData?.total_repositories ?? projects.length).toLocaleString()} Repositories
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
