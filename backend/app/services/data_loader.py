@@ -1,25 +1,38 @@
 import os
+import gc
 import logging
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, Set
 import pandas as pd
 import numpy as np
 
 logger = logging.getLogger("app.services.data_loader")
 
-# Expected schemas according to requirements
+# Environment variable toggle for low memory mode (default to True for memory safety on Render/free tier)
+LOW_MEMORY_MODE = os.getenv("LOW_MEMORY_MODE", "true").strip().lower() in ("true", "1", "yes")
+
+# Essential schemas strictly required for metric calculations (heavy text columns dropped to conserve RAM)
 REQUIRED_SCHEMAS = {
     "pull_request": [
-        "id", "number", "title", "body", "agent", "user_id", "user",
-        "state", "created_at", "closed_at", "merged_at", "repo_id",
-        "repo_url", "html_url"
+        "id", "number", "agent", "user_id", "user",
+        "state", "created_at", "closed_at", "merged_at", "repo_id"
     ],
     "pr_reviews": [
-        "id", "pr_id", "user", "user_type", "state", "submitted_at", "body"
+        "id", "pr_id", "user", "user_type", "state", "submitted_at"
     ],
     "repository": [
-        "id", "url", "license", "full_name", "is_forked", "language", "forks", "stars"
+        "id", "license", "full_name", "is_forked", "language", "forks", "stars"
     ]
 }
+
+HEAVY_TEXT_COLUMNS = ["body", "title", "html_url", "repo_url"]
+
+
+def drop_heavy_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Drop memory-intensive text columns (body, title, html_url, repo_url) immediately."""
+    cols_to_drop = [col for col in HEAVY_TEXT_COLUMNS if col in df.columns]
+    if cols_to_drop:
+        df = df.drop(columns=cols_to_drop)
+    return df
 
 
 class DataLoader:
@@ -38,6 +51,7 @@ class DataLoader:
         self.df_repos: Optional[pd.DataFrame] = None
         self.schema_validation_errors: Dict[str, list] = {}
         self.dataset_meta: Dict[str, Any] = {}
+        self.low_memory_mode: bool = LOW_MEMORY_MODE
 
     def _resolve_file(self, base_name: str, explicit_path: Optional[str] = None) -> str:
         """Find the dataset file in data_dir in .json.gz, .json, or .parquet format."""
@@ -90,7 +104,7 @@ class DataLoader:
                     raise RuntimeError("Parquet support requires pyarrow. Please use JSON datasets.") from exc
 
     def validate_schema(self, df: pd.DataFrame, schema_name: str) -> Tuple[bool, list]:
-        """Validate that the dataframe contains all required columns."""
+        """Validate that the dataframe contains all strictly required essential columns."""
         expected = REQUIRED_SCHEMAS.get(schema_name, [])
         missing = [col for col in expected if col not in df.columns]
         if missing:
@@ -103,7 +117,13 @@ class DataLoader:
         reviews_path: Optional[str] = None,
         repo_path: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Dynamically load and clean the JSON/Parquet datasets."""
+        """Dynamically load and clean the JSON/Parquet datasets with aggressive memory optimization."""
+        low_memory_mode = os.getenv("LOW_MEMORY_MODE", str(self.low_memory_mode)).strip().lower() in ("true", "1", "yes")
+        if low_memory_mode:
+            logger.info("LOW_MEMORY_MODE is active: enabling aggressive early sampling, heavy column pruning, and garbage collection.")
+        else:
+            logger.info("LOW_MEMORY_MODE is inactive: full dataset processing enabled.")
+
         pr_file = self._resolve_file("pull_request", pr_path)
         reviews_file = self._resolve_file("pr_reviews", reviews_path)
         repo_file = self._resolve_file("repository", repo_path)
@@ -117,43 +137,105 @@ class DataLoader:
             self.schema_validation_errors["pull_request"] = missing_pr
             raise ValueError(f"{os.path.basename(pr_file)} is missing required columns: {missing_pr}")
 
-        # 2. Load PR Reviews
+        # Drop heavy text columns immediately right after loading
+        df_prs_raw = drop_heavy_columns(df_prs_raw)
+        gc.collect()
+
+        # Deduplicate on primary key
+        df_prs = df_prs_raw.drop_duplicates(subset=["id"]).copy()
+        total_prs_raw = len(df_prs)
+        del df_prs_raw
+        gc.collect()
+
+        # Aggressive Early Sampling: maximum 200 rows or 20% of data (whichever is smaller)
+        if low_memory_mode and total_prs_raw > 0:
+            sample_size = min(200, int(total_prs_raw * 0.20))
+            if sample_size < 1:
+                sample_size = min(total_prs_raw, 200)
+            df_prs = df_prs.sample(n=sample_size, random_state=42).reset_index(drop=True)
+            gc.collect()
+            logger.info(f"Sampled to {len(df_prs)} PRs to conserve memory (from {total_prs_raw} original PRs).")
+
+        # Collect sampled PR IDs and Repo IDs to immediately filter downstream datasets
+        sampled_pr_ids = set(df_prs["id"].dropna().unique())
+        sampled_pr_ids_numeric = set(pd.to_numeric(df_prs["id"], errors="coerce").dropna().astype("int64").unique())
+
+        sampled_repo_ids = set(df_prs["repo_id"].dropna().unique())
+        sampled_repo_ids_numeric = set(pd.to_numeric(df_prs["repo_id"], errors="coerce").dropna().astype("int64").unique())
+
+        # 2. Load PR Reviews sequentially after PR sampling
         df_reviews_raw = self._read_file(reviews_file)
         valid_rev, missing_rev = self.validate_schema(df_reviews_raw, "pr_reviews")
         if not valid_rev:
             self.schema_validation_errors["pr_reviews"] = missing_rev
             raise ValueError(f"{os.path.basename(reviews_file)} is missing required columns: {missing_rev}")
 
-        # 3. Load Repositories
+        # Drop heavy text columns immediately right after loading
+        df_reviews_raw = drop_heavy_columns(df_reviews_raw)
+        gc.collect()
+
+        total_reviews_raw = len(df_reviews_raw)
+        if low_memory_mode:
+            # Filter pr_reviews to ONLY include rows matching sampled PRs
+            rev_pr_ids_num = pd.to_numeric(df_reviews_raw["pr_id"], errors="coerce")
+            df_reviews_raw = df_reviews_raw[
+                df_reviews_raw["pr_id"].isin(sampled_pr_ids) |
+                rev_pr_ids_num.isin(sampled_pr_ids_numeric)
+            ]
+            del rev_pr_ids_num
+            gc.collect()
+
+        df_reviews = df_reviews_raw.drop_duplicates(subset=["id"]).copy()
+        del df_reviews_raw
+        gc.collect()
+
+        if low_memory_mode:
+            logger.info(f"Filtered to {len(df_reviews)} PR reviews matching sampled PRs to conserve memory (from {total_reviews_raw} original reviews).")
+
+        # 3. Load Repositories sequentially after PR reviews filtering
         df_repos_raw = self._read_file(repo_file)
         valid_repo, missing_repo = self.validate_schema(df_repos_raw, "repository")
         if not valid_repo:
             self.schema_validation_errors["repository"] = missing_repo
             raise ValueError(f"{os.path.basename(repo_file)} is missing required columns: {missing_repo}")
 
-        # --- Data Cleaning & Memory Optimization ---
-        import gc
+        # Drop heavy text columns immediately right after loading
+        df_repos_raw = drop_heavy_columns(df_repos_raw)
+        gc.collect()
 
-        # Deduplication on primary keys and immediate garbage collection of raw frames
-        df_prs = df_prs_raw.drop_duplicates(subset=["id"]).copy()
-        del df_prs_raw
-        df_reviews = df_reviews_raw.drop_duplicates(subset=["id"]).copy()
-        del df_reviews_raw
+        total_repos_raw = len(df_repos_raw)
+        if low_memory_mode:
+            # Filter repository to ONLY include rows matching sampled repo_id
+            repo_ids_num = pd.to_numeric(df_repos_raw["id"], errors="coerce")
+            df_repos_raw = df_repos_raw[
+                df_repos_raw["id"].isin(sampled_repo_ids) |
+                repo_ids_num.isin(sampled_repo_ids_numeric)
+            ]
+            del repo_ids_num
+            gc.collect()
+
         df_repos = df_repos_raw.drop_duplicates(subset=["id"]).copy()
         del df_repos_raw
         gc.collect()
 
-        # Clean string/null fields and downcast for memory efficiency
-        df_prs["title"] = df_prs["title"].fillna("Untitled PR").astype(str).str.slice(0, 150)
-        # Truncate or drop body to avoid hundreds of megabytes in memory
+        if low_memory_mode:
+            logger.info(f"Filtered to {len(df_repos)} repositories matching sampled PRs to conserve memory (from {total_repos_raw} original repos).")
+
+        # --- Data Cleaning & Metric Calculations ---
+        # Ensure optional lightweight fallback columns exist if needed by downstream consumers
+        for col in ["title", "body", "repo_url", "html_url"]:
+            if col not in df_prs.columns:
+                df_prs[col] = ""
+
+        if "title" in df_prs.columns:
+            df_prs["title"] = df_prs["title"].fillna("Untitled PR").astype(str).str.slice(0, 150)
         if "body" in df_prs.columns:
             df_prs["body"] = df_prs["body"].fillna("").astype(str).str.slice(0, 200)
-        else:
-            df_prs["body"] = ""
 
         df_prs["user"] = df_prs["user"].fillna("unknown_user").astype(str)
-        df_prs["user_id"] = pd.to_numeric(df_prs["user_id"], errors="coerce").fillna(0).astype("int32")
-        df_prs["repo_id"] = pd.to_numeric(df_prs["repo_id"], errors="coerce").fillna(0).astype("int32")
+        df_prs["id"] = pd.to_numeric(df_prs["id"], errors="coerce").fillna(0).astype("int64")
+        df_prs["user_id"] = pd.to_numeric(df_prs["user_id"], errors="coerce").fillna(0).astype("int64")
+        df_prs["repo_id"] = pd.to_numeric(df_prs["repo_id"], errors="coerce").fillna(0).astype("int64")
         df_prs["number"] = pd.to_numeric(df_prs.get("number", 0), errors="coerce").fillna(0).astype("int32")
         df_prs["state"] = df_prs["state"].fillna("closed").astype(str).str.lower().astype("category")
 
@@ -176,22 +258,25 @@ class DataLoader:
             (df_prs.loc[merged_mask, "merged_dt"] - df_prs.loc[merged_mask, "created_dt"]).dt.total_seconds() / 3600.0
         ).astype("float32")
 
-        # Reviews Data Cleaning - drop review body to save ~80MB memory
+        # Reviews Data Cleaning
         if "body" in df_reviews.columns:
             df_reviews = df_reviews.drop(columns=["body"])
         df_reviews["user"] = df_reviews["user"].fillna("anonymous").astype(str)
-        df_reviews["pr_id"] = pd.to_numeric(df_reviews["pr_id"], errors="coerce").fillna(0).astype("int32")
-        df_reviews["id"] = pd.to_numeric(df_reviews["id"], errors="coerce").fillna(0).astype("int32")
+        df_reviews["pr_id"] = pd.to_numeric(df_reviews["pr_id"], errors="coerce").fillna(0).astype("int64")
+        df_reviews["id"] = pd.to_numeric(df_reviews["id"], errors="coerce").fillna(0).astype("int64")
         df_reviews["state"] = df_reviews["state"].fillna("COMMENTED").astype(str).astype("category")
         df_reviews["submitted_dt"] = pd.to_datetime(df_reviews["submitted_at"], errors="coerce", utc=True)
 
         # Compute First Review Time per PR
         valid_reviews = df_reviews.dropna(subset=["submitted_dt"]).sort_values("submitted_dt")
-        first_reviews = valid_reviews.groupby("pr_id").agg(
-            first_review_dt=("submitted_dt", "first"),
-            review_count=("id", "count"),
-            latest_review_state=("state", "last")
-        ).reset_index()
+        if not valid_reviews.empty:
+            first_reviews = valid_reviews.groupby("pr_id").agg(
+                first_review_dt=("submitted_dt", "first"),
+                review_count=("id", "count"),
+                latest_review_state=("state", "last")
+            ).reset_index()
+        else:
+            first_reviews = pd.DataFrame(columns=["pr_id", "first_review_dt", "review_count", "latest_review_state"])
 
         df_prs = df_prs.merge(first_reviews, left_on="id", right_on="pr_id", how="left")
         if "pr_id" in df_prs.columns:
@@ -200,7 +285,14 @@ class DataLoader:
         del valid_reviews, first_reviews
         gc.collect()
 
-        df_prs["review_count"] = df_prs["review_count"].fillna(0).astype("int32")
+        if "review_count" not in df_prs.columns:
+            df_prs["review_count"] = 0
+        else:
+            df_prs["review_count"] = df_prs["review_count"].fillna(0).astype("int32")
+
+        if "first_review_dt" not in df_prs.columns:
+            df_prs["first_review_dt"] = pd.NaT
+
         df_prs["review_time_hours"] = np.nan
         has_review_mask = df_prs["first_review_dt"].notnull() & (df_prs["first_review_dt"] >= df_prs["created_dt"])
         df_prs.loc[has_review_mask, "review_time_hours"] = (
@@ -208,6 +300,7 @@ class DataLoader:
         ).astype("float32")
 
         # Repositories Data Cleaning
+        df_repos["id"] = pd.to_numeric(df_repos["id"], errors="coerce").fillna(0).astype("int64")
         df_repos["full_name"] = df_repos["full_name"].fillna("Unknown Repo").astype(str)
         df_repos["language"] = df_repos["language"].fillna("Unknown").astype(str).astype("category")
         df_repos["stars"] = pd.to_numeric(df_repos["stars"], errors="coerce").fillna(0).astype("int32")
@@ -229,10 +322,12 @@ class DataLoader:
             "pr_file": os.path.basename(pr_file),
             "reviews_file": os.path.basename(reviews_file),
             "repo_file": os.path.basename(repo_file),
+            "low_memory_mode": low_memory_mode,
         }
 
         logger.info(
-            f"Successfully loaded {len(df_prs)} PRs, {len(df_reviews)} reviews, {len(df_repos)} repos."
+            f"Dataset loading complete (low_memory={low_memory_mode}): "
+            f"{len(df_prs)} PRs, {len(df_reviews)} reviews, {len(df_repos)} repos."
         )
 
         try:

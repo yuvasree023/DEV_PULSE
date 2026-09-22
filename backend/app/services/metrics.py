@@ -407,22 +407,22 @@ class MetricsService:
         for _, row in prs_sub.iterrows():
             prs.append({
                 "id": int(row["id"]),
-                "number": int(row["number"]),
-                "title": str(row["title"]),
-                "body": str(row["body"]) if pd.notnull(row["body"]) else None,
-                "agent": str(row["agent"]) if (pd.notnull(row["agent"]) and row["agent"]) else None,
+                "number": int(row["number"]) if "number" in row and pd.notnull(row["number"]) else 0,
+                "title": str(row["title"]) if "title" in row and pd.notnull(row["title"]) and str(row["title"]).strip() else f"PR #{int(row.get('number', 0)) if pd.notnull(row.get('number', 0)) else int(row['id'])}",
+                "body": str(row["body"]) if "body" in row and pd.notnull(row["body"]) else None,
+                "agent": str(row["agent"]) if (pd.notnull(row.get("agent")) and row["agent"]) else None,
                 "user_id": int(row["user_id"]),
                 "user": str(row["user"]),
                 "state": str(row["state"]),
                 "created_at": str(row["created_at"]),
-                "closed_at": str(row["closed_at"]) if pd.notnull(row["closed_at"]) else None,
-                "merged_at": str(row["merged_at"]) if pd.notnull(row["merged_at"]) else None,
+                "closed_at": str(row["closed_at"]) if pd.notnull(row.get("closed_at")) else None,
+                "merged_at": str(row["merged_at"]) if pd.notnull(row.get("merged_at")) else None,
                 "repo_id": int(row["repo_id"]),
-                "repo_url": str(row["repo_url"]),
-                "html_url": str(row["html_url"]),
-                "cycle_time_hours": float(row["cycle_time_hours"]) if pd.notnull(row["cycle_time_hours"]) else None,
-                "review_time_hours": float(row["review_time_hours"]) if pd.notnull(row["review_time_hours"]) else None,
-                "is_ai_assisted": bool(row["is_ai_assisted"]),
+                "repo_url": str(row["repo_url"]) if "repo_url" in row and pd.notnull(row["repo_url"]) else "",
+                "html_url": str(row["html_url"]) if "html_url" in row and pd.notnull(row["html_url"]) else "",
+                "cycle_time_hours": float(row["cycle_time_hours"]) if pd.notnull(row.get("cycle_time_hours")) else None,
+                "review_time_hours": float(row["review_time_hours"]) if pd.notnull(row.get("review_time_hours")) else None,
+                "is_ai_assisted": bool(row.get("is_ai_assisted", False)),
                 "latest_review_state": str(row["latest_review_state"]) if "latest_review_state" in row and pd.notnull(row["latest_review_state"]) else None
             })
         return {"pull_requests": prs, "total": len(prs)}

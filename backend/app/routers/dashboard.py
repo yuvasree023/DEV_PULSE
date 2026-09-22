@@ -1,21 +1,18 @@
 import os
 import shutil
-import tempfile
 import logging
 from typing import Optional, Dict, Any
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query
+from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 from pydantic import BaseModel
 
 try:
-    from app.services.data_loader import data_loader
-    from app.services.metrics import metrics_service
-    from app.services.ml import ml_service
     from app.services.gemini import gemini_service
+    from app.services.precomputed import load_precomputed
+    from app.config import settings
 except ImportError:
-    from backend.app.services.data_loader import data_loader
-    from backend.app.services.metrics import metrics_service
-    from backend.app.services.ml import ml_service
     from backend.app.services.gemini import gemini_service
+    from backend.app.services.precomputed import load_precomputed
+    from backend.app.config import settings
 
 logger = logging.getLogger("app.routers.dashboard")
 
@@ -30,6 +27,12 @@ class ExplainRequest(BaseModel):
 @router.get("/overview", summary="Get top-level real KPI metrics and weekly throughput")
 def get_overview():
     try:
+        if settings.USE_PRECOMPUTED:
+            return load_precomputed()["overview"]
+        try:
+            from app.services.metrics import metrics_service
+        except ImportError:
+            from backend.app.services.metrics import metrics_service
         return metrics_service.get_overview_metrics()
     except Exception as exc:
         logger.error(f"Error computing overview metrics: {exc}")
@@ -42,6 +45,12 @@ def get_overview():
 @router.get("/v1/analytics/ai-impact", include_in_schema=False)
 def get_ai_impact():
     try:
+        if settings.USE_PRECOMPUTED:
+            return load_precomputed()["ai_impact"]
+        try:
+            from app.services.metrics import metrics_service
+        except ImportError:
+            from backend.app.services.metrics import metrics_service
         return metrics_service.get_ai_impact_metrics()
     except Exception as exc:
         logger.error(f"Error computing AI impact metrics: {exc}")
@@ -51,6 +60,12 @@ def get_ai_impact():
 @router.get("/ai-tools", summary="Get real metrics per AI tool agent")
 def get_ai_tools():
     try:
+        if settings.USE_PRECOMPUTED:
+            return load_precomputed()["ai_tools"]
+        try:
+            from app.services.metrics import metrics_service
+        except ImportError:
+            from backend.app.services.metrics import metrics_service
         return metrics_service.get_ai_tools_metrics()
     except Exception as exc:
         logger.error(f"Error computing AI tools metrics: {exc}")
@@ -60,6 +75,18 @@ def get_ai_tools():
 @router.get("/people", summary="Get real per-developer metrics")
 def get_people(limit: int = Query(100, ge=1, le=1000)):
     try:
+        if settings.USE_PRECOMPUTED:
+            payload = load_precomputed().get("people", {"developers": [], "total_developers": 0})
+            devs = payload.get("developers", [])[:limit]
+            return {
+                "total_developers": payload.get("total_developers", len(devs)),
+                "developers": devs,
+                "disclaimer": payload.get("disclaimer", "Neutral developer statistics aggregated directly from PR activity.")
+            }
+        try:
+            from app.services.metrics import metrics_service
+        except ImportError:
+            from backend.app.services.metrics import metrics_service
         return metrics_service.get_people_metrics(limit=limit)
     except Exception as exc:
         logger.error(f"Error computing people metrics: {exc}")
@@ -69,6 +96,18 @@ def get_people(limit: int = Query(100, ge=1, le=1000)):
 @router.get("/projects", summary="Get real repository analytics joined with pull requests")
 def get_projects(limit: int = Query(100, ge=1, le=1000)):
     try:
+        if settings.USE_PRECOMPUTED:
+            payload = load_precomputed().get("projects", {"repositories": [], "languages": [], "disclaimer": ""})
+            repos = payload.get("repositories", [])[:limit]
+            return {
+                "repositories": repos,
+                "languages": payload.get("languages", []),
+                "disclaimer": payload.get("disclaimer", "Repository metrics grounded in repository and pull request datasets.")
+            }
+        try:
+            from app.services.metrics import metrics_service
+        except ImportError:
+            from backend.app.services.metrics import metrics_service
         return metrics_service.get_projects_metrics(limit=limit)
     except Exception as exc:
         logger.error(f"Error computing project metrics: {exc}")
@@ -78,6 +117,12 @@ def get_projects(limit: int = Query(100, ge=1, le=1000)):
 @router.get("/ml-insights", summary="Get explainable Scikit-learn K-Means workflow clusters")
 def get_ml_insights(clusters: int = Query(4, ge=2, le=8)):
     try:
+        if settings.USE_PRECOMPUTED and clusters == 4:
+            return load_precomputed()["ml_insights"]
+        try:
+            from app.services.ml import ml_service
+        except ImportError:
+            from backend.app.services.ml import ml_service
         return ml_service.run_developer_segmentation(n_clusters=clusters)
     except Exception as exc:
         logger.error(f"Error computing ML insights: {exc}")
@@ -90,6 +135,16 @@ def get_pull_requests(
     state: Optional[str] = Query(None)
 ):
     try:
+        if settings.USE_PRECOMPUTED:
+            payload = load_precomputed()["pull_requests"]
+            rows = payload.get("pull_requests", [])
+            if state:
+                rows = [row for row in rows if str(row.get("state", "")).lower() == state.lower()]
+            return {"pull_requests": rows[:limit], "total": min(len(rows), limit)}
+        try:
+            from app.services.metrics import metrics_service
+        except ImportError:
+            from backend.app.services.metrics import metrics_service
         return metrics_service.get_pull_requests(limit=limit, state=state)
     except Exception as exc:
         logger.error(f"Error retrieving pull requests: {exc}")
@@ -100,18 +155,27 @@ def get_pull_requests(
 async def generate_explanation(req: Optional[ExplainRequest] = None):
     try:
         focus = req.focus if req else "holistic overview"
-        # Compile structured context
-        overview = metrics_service.get_overview_metrics()
-        ai_impact = metrics_service.get_ai_impact_metrics()
-        ai_tools = metrics_service.get_ai_tools_metrics()
-        ml_insights = ml_service.run_developer_segmentation(n_clusters=4)
-
-        context = {
-            "overview": overview,
-            "ai_impact": ai_impact,
-            "ai_tools": ai_tools,
-            "ml_insights": ml_insights
-        }
+        if settings.USE_PRECOMPUTED:
+            precomputed = load_precomputed()
+            context = {
+                "overview": precomputed["overview"],
+                "ai_impact": precomputed["ai_impact"],
+                "ai_tools": precomputed["ai_tools"],
+                "ml_insights": precomputed["ml_insights"]
+            }
+        else:
+            try:
+                from app.services.metrics import metrics_service
+                from app.services.ml import ml_service
+            except ImportError:
+                from backend.app.services.metrics import metrics_service
+                from backend.app.services.ml import ml_service
+            context = {
+                "overview": metrics_service.get_overview_metrics(),
+                "ai_impact": metrics_service.get_ai_impact_metrics(),
+                "ai_tools": metrics_service.get_ai_tools_metrics(),
+                "ml_insights": ml_service.run_developer_segmentation(n_clusters=4)
+            }
 
         explanation = await gemini_service.generate_explanation(context_data=context, prompt_focus=focus)
         return explanation
@@ -127,6 +191,11 @@ async def upload_dataset(
     repository_file: Optional[UploadFile] = File(None)
 ):
     try:
+        try:
+            from app.services.data_loader import data_loader
+        except ImportError:
+            from backend.app.services.data_loader import data_loader
+
         # Determine upload directory
         upload_dir = os.path.join(data_loader.data_dir, "uploads")
         os.makedirs(upload_dir, exist_ok=True)
@@ -157,12 +226,11 @@ async def upload_dataset(
         if not saved_files:
             raise HTTPException(status_code=400, detail="No dataset files were uploaded.")
 
-        # Reload data loader with the updated files or defaults
-        pr_path = saved_files.get("pull_request")
-        rev_path = saved_files.get("pr_reviews")
-        repo_path = saved_files.get("repository")
-
-        meta = data_loader.load_dataset(pr_path=pr_path, reviews_path=rev_path, repo_path=repo_path)
+        meta = data_loader.load_dataset(
+            pr_path=saved_files.get("pull_request"),
+            reviews_path=saved_files.get("pr_reviews"),
+            repo_path=saved_files.get("repository")
+        )
 
         return {
             "status": "success",
@@ -181,6 +249,10 @@ async def upload_dataset(
 @router.post("/reset-dataset", summary="Reset back to base dataset")
 def reset_dataset():
     try:
+        try:
+            from app.services.data_loader import data_loader
+        except ImportError:
+            from backend.app.services.data_loader import data_loader
         meta = data_loader.load_dataset()
         return {
             "status": "success",
@@ -193,8 +265,23 @@ def reset_dataset():
 
 @router.get("/dataset-info", summary="Get dataset schemas and validation metadata")
 def get_dataset_info():
+    if settings.USE_PRECOMPUTED:
+        meta = load_precomputed().get("dataset_info", {}).get("meta", {})
+        return {
+            "meta": meta,
+            "validation_errors": [],
+            "is_valid": True,
+            "persistent": settings.PERSISTENT_DISK,
+            "warning": "Uploads are temporary in this environment." if not settings.PERSISTENT_DISK else None,
+        }
+    try:
+        from app.services.data_loader import data_loader
+    except ImportError:
+        from backend.app.services.data_loader import data_loader
     return {
         "meta": data_loader.dataset_meta or (data_loader.load_dataset() if data_loader.df_prs is None else {}),
         "validation_errors": data_loader.schema_validation_errors,
-        "is_valid": len(data_loader.schema_validation_errors) == 0
+        "is_valid": len(data_loader.schema_validation_errors) == 0,
+        "persistent": settings.PERSISTENT_DISK,
+        "warning": "Uploads are temporary in this environment." if not settings.PERSISTENT_DISK else None,
     }

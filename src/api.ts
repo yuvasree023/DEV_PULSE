@@ -11,7 +11,7 @@ import {
 } from './types';
 
 // Standardized API Base URL supporting both VITE_API_URL (recommended) and VITE_API_BASE_URL
-export const API_BASE = import.meta.env.VITE_API_URL ?? import.meta.env.VITE_API_BASE_URL ?? '';
+export const API_BASE = (import.meta.env.VITE_API_URL ?? import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
 export class ApiError extends Error {
   status: number;

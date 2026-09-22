@@ -40,7 +40,9 @@ class GeminiService:
         
         user_query = f"Provide an objective explanation of the following developer telemetry and ML clustering results. Focus on {prompt_focus or 'holistic overview'}.\n\nDATA:\n{context_json_str}"
 
-        # If API key is not configured, generate a deterministic grounded template from the exact numbers
+        self.api_key = settings.require_gemini_api_key()
+
+        # If API key is not configured outside production, generate a deterministic grounded template.
         if not self.api_key or self.api_key.startswith("your_") or len(self.api_key) < 10:
             logger.warning("GEMINI_API_KEY not configured or placeholder. Generating deterministic grounded explanation.")
             return self._generate_deterministic_explanation(context_data, prompt_focus)

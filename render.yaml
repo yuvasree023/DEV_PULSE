@@ -16,3 +16,5 @@ services:
         sync: false
       - key: CORS_ORIGINS
         value: "https://dev-pulse-lhnv-nine.vercel.app,http://localhost:5173,http://localhost:3000"
+      - key: LOW_MEMORY_MODE
+        value: "true"

@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     """Application configuration loaded from environment variables or .env file."""
 
     APP_NAME: str = "AI Impact & Developer Productivity Dashboard API"
-    ENVIRONMENT: str = "development"
+    ENVIRONMENT: str = "production" if os.getenv("RENDER") else "development"
     DEBUG: bool = False
     LOG_LEVEL: str = "INFO"
 
@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     # Google Gemini API
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.0-flash"
+    USE_PRECOMPUTED: bool = True
+    PERSISTENT_DISK: bool = False
+    LOW_MEMORY_MODE: bool = True
 
     # CORS Origins
     CORS_ORIGINS: Union[List[str], str] = [
@@ -47,6 +50,12 @@ class Settings(BaseSettings):
     def is_sqlite(self) -> bool:
         """Check if SQLite database is used (e.g. for lightweight testing)."""
         return self.DATABASE_URL.startswith("sqlite")
+
+    def require_gemini_api_key(self) -> str:
+        """Fail clearly when production is configured to call Gemini without a key."""
+        if self.ENVIRONMENT.lower() == "production" and not self.GEMINI_API_KEY.strip():
+            raise RuntimeError("GEMINI_API_KEY is required in production for /api/explain.")
+        return self.GEMINI_API_KEY
 
     model_config = SettingsConfigDict(
         env_file=".env",

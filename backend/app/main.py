@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse
 try:
     from app.config import settings
     from app.database import engine, Base, check_db_connection
-    from app.services.data_loader import data_loader
+    from app.services.precomputed import PRECOMPUTED_PATH
     from app.routers import (
         analytics_router,
         tasks_router,
@@ -31,7 +31,7 @@ try:
 except ImportError:
     from backend.app.config import settings
     from backend.app.database import engine, Base, check_db_connection
-    from backend.app.services.data_loader import data_loader
+    from backend.app.services.precomputed import PRECOMPUTED_PATH
     from backend.app.routers import (
         analytics_router,
         tasks_router,
@@ -55,12 +55,25 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler: run startup checks and dataset loading."""
     logger.info(f"Starting {settings.APP_NAME} in '{settings.ENVIRONMENT}' environment...")
     
-    # Initialize Parquet dataset
-    try:
-        data_loader.load_dataset()
-        logger.info("Parquet dataset successfully loaded and validated.")
-    except Exception as exc:
-        logger.warning(f"Could not preload default parquet dataset at startup: {exc}")
+    logger.info("Resolved CORS origins: %s", cors_origins)
+    if settings.USE_PRECOMPUTED:
+        if PRECOMPUTED_PATH.exists():
+            logger.info("USE_PRECOMPUTED=true; serving checked-in analytics payloads.")
+        else:
+            logger.error("USE_PRECOMPUTED=true but %s is missing.", PRECOMPUTED_PATH)
+    else:
+        try:
+            try:
+                from app.services.data_loader import data_loader
+            except ImportError:
+                from backend.app.services.data_loader import data_loader
+            data_loader.load_dataset()
+            logger.info("Dataset successfully loaded and validated.")
+        except Exception as exc:
+            logger.warning(f"Could not preload default dataset at startup: {exc}")
+
+    if not settings.PERSISTENT_DISK:
+        logger.warning("Persistent disk is not configured; uploaded datasets are temporary.")
 
     # Create DB tables if not already created
     try:
@@ -109,7 +122,14 @@ def health_check():
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "db_connected": is_connected,
         "environment": settings.ENVIRONMENT,
-        "dataset_loaded": data_loader.df_prs is not None and len(data_loader.df_prs) > 0
+        "dataset_loaded": (
+            PRECOMPUTED_PATH.exists()
+            if settings.USE_PRECOMPUTED
+            else (
+                __import__("app.services.data_loader", fromlist=["data_loader"]).data_loader.df_prs is not None
+                and len(__import__("app.services.data_loader", fromlist=["data_loader"]).data_loader.df_prs) > 0
+            )
+        )
     }
 
 
@@ -132,6 +152,9 @@ app.include_router(repositories_router, prefix=api_v1_prefix)
 @app.get("/ai-impact", tags=["Real Data Analytics & ML Dashboard"], include_in_schema=False)
 @app.get("/api/v1/analytics/ai-impact", tags=["Real Data Analytics & ML Dashboard"], include_in_schema=False)
 def ai_impact_direct_route():
+    if settings.USE_PRECOMPUTED:
+        from app.services.precomputed import load_precomputed
+        return load_precomputed()["ai_impact"]
     try:
         from app.services.metrics import metrics_service
     except ImportError:
