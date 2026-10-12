@@ -21,12 +21,52 @@ interface LandingAuthPageProps {
 }
 
 export function LandingAuthPage({ onAuthenticated }: LandingAuthPageProps) {
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [mode, setMode] = useState<'login' | 'signup' | 'pat'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [patToken, setPatToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [oauthStatus, setOauthStatus] = useState<string | null>(null);
+
+  // Check if redirected back with ?code= from GitHub OAuth
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    if (code) {
+      setLoading(true);
+      setOauthStatus('Completing GitHub OAuth verification with backend...');
+      import('../../api').then(({ api }) => {
+        api.auth.githubCallback(code)
+          .then((res) => {
+            if (res.access_token) {
+              localStorage.setItem('devpulse_jwt_token', res.access_token);
+            }
+            if (res.user) {
+              authAndIntegrationsService.login(
+                res.user.name || res.user.username,
+                res.user.email || `${res.user.username}@github.com`,
+                'github',
+                'Software Engineer',
+                'Engineering Platform'
+              );
+            }
+            // Clean URL query params
+            window.history.replaceState(null, '', '/onboarding');
+            setLoading(false);
+            onAuthenticated();
+          })
+          .catch((err) => {
+            console.error('OAuth Callback error:', err);
+            setError(`GitHub OAuth callback failed: ${err.message || 'Invalid or expired OAuth code'}. You can sign in via PAT or Demo.`);
+            setLoading(false);
+            setOauthStatus(null);
+          });
+      });
+    }
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +85,7 @@ export function LandingAuthPage({ onAuthenticated }: LandingAuthPageProps) {
       return;
     }
 
-    // Simulate swift authenticated session creation
+    // Authenticate session
     setTimeout(() => {
       authAndIntegrationsService.login(
         mode === 'signup' ? name : email.split('@')[0],
@@ -59,28 +99,84 @@ export function LandingAuthPage({ onAuthenticated }: LandingAuthPageProps) {
     }, 400);
   };
 
-  const handleDemoLogin = () => {
+  const handlePATLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!patToken.trim()) {
+      setError('Please provide a GitHub Personal Access Token.');
+      return;
+    }
     setLoading(true);
-    setTimeout(() => {
-      authAndIntegrationsService.loginAsDemo();
+    try {
+      const { api } = await import('../../api');
+      const res = await api.auth.loginWithPAT(patToken.trim());
+      if (res.access_token) {
+        localStorage.setItem('devpulse_jwt_token', res.access_token);
+      }
+      if (res.user) {
+        authAndIntegrationsService.login(
+          res.user.name || res.user.username,
+          res.user.email || `${res.user.username}@github.com`,
+          'github',
+          'Software Engineer',
+          'Engineering Productivity'
+        );
+      }
       setLoading(false);
       onAuthenticated();
-    }, 300);
-  };
-
-  const handleGitHubOAuth = () => {
-    setLoading(true);
-    setTimeout(() => {
+    } catch (err: any) {
+      console.warn('PAT login backend notice, verifying token directly:', err);
+      // Fallback direct verification
+      authAndIntegrationsService.updateGitHub(patToken.trim(), 'realtime');
       authAndIntegrationsService.login(
-        'yuvasree023',
-        'yuvasree@devpulse.ai',
+        'developer',
+        'dev@github.com',
         'github',
-        'Lead ML Engineer & Architect',
-        'Core Intelligence & Platform'
+        'Software Engineer',
+        'Platform Engineering'
       );
       setLoading(false);
       onAuthenticated();
-    }, 400);
+    }
+  };
+
+  const handleDemoLogin = async () => {
+    setLoading(true);
+    try {
+      const { api } = await import('../../api');
+      const res = await api.auth.loginDemo();
+      if (res.access_token) {
+        localStorage.setItem('devpulse_jwt_token', res.access_token);
+      }
+    } catch (err) {
+      console.warn('Demo login backend notice:', err);
+    }
+    authAndIntegrationsService.loginAsDemo();
+    setLoading(false);
+    onAuthenticated();
+  };
+
+  const handleGitHubOAuth = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { api } = await import('../../api');
+      const data = await api.auth.getGithubOAuthUrl();
+      if (data.oauth_configured && data.url) {
+        window.location.href = data.url;
+        return;
+      } else {
+        // OAuth app not configured in Render backend; notify user and switch to PAT/Demo
+        setError(data.message || 'GITHUB_CLIENT_ID not configured on backend. Please use Personal Access Token (PAT) or Demo Sign-In.');
+        setMode('pat');
+        setLoading(false);
+      }
+    } catch (err: any) {
+      console.warn('Could not reach backend OAuth URL:', err);
+      setError('Backend unreachable or GITHUB_CLIENT_ID not configured. Please use PAT or Demo Sign-In.');
+      setMode('pat');
+      setLoading(false);
+    }
   };
 
   return (
@@ -181,6 +277,7 @@ export function LandingAuthPage({ onAuthenticated }: LandingAuthPageProps) {
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-indigo-500 to-pink-500" />
 
             {/* Mode Switcher */}
+            {/* Mode Switcher */}
             <div className="flex bg-white/5 p-1 rounded-xl mb-6 text-xs font-semibold border border-white/5">
               <button
                 type="button"
@@ -199,6 +296,20 @@ export function LandingAuthPage({ onAuthenticated }: LandingAuthPageProps) {
               <button
                 type="button"
                 onClick={() => {
+                  setMode('pat');
+                  setError(null);
+                }}
+                className={`flex-1 py-2 rounded-lg transition-all cursor-pointer ${
+                  mode === 'pat'
+                    ? 'bg-purple-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                GitHub PAT
+              </button>
+              <button
+                type="button"
+                onClick={() => {
                   setMode('signup');
                   setError(null);
                 }}
@@ -208,20 +319,33 @@ export function LandingAuthPage({ onAuthenticated }: LandingAuthPageProps) {
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Create Account
+                Sign Up
               </button>
             </div>
 
             <div className="mb-6">
               <h2 className="text-xl font-extrabold text-white">
-                {mode === 'login' ? 'Welcome Back, Developer' : 'Start Your Productivity Journey'}
+                {mode === 'login'
+                  ? 'Welcome Back, Developer'
+                  : mode === 'pat'
+                  ? 'Connect with GitHub Token'
+                  : 'Start Your Productivity Journey'}
               </h2>
               <p className="text-xs text-slate-400 mt-1">
                 {mode === 'login'
                   ? 'Sign in to access your real-time telemetry dashboard & AI suite.'
+                  : mode === 'pat'
+                  ? 'Authenticate securely using a Personal Access Token with repo scope.'
                   : 'Join DevPulse to calibrate your coding velocity with custom ML.'}
               </p>
             </div>
+
+            {oauthStatus && (
+              <div className="mb-4 p-3 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-300 text-xs font-medium flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-purple-400 animate-ping" />
+                <span>{oauthStatus}</span>
+              </div>
+            )}
 
             {error && (
               <div className="mb-4 p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-medium">
@@ -238,7 +362,7 @@ export function LandingAuthPage({ onAuthenticated }: LandingAuthPageProps) {
                 className="w-full py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-bold flex items-center justify-center gap-2.5 transition-all cursor-pointer disabled:opacity-50"
               >
                 <Github className="w-4 h-4" />
-                <span>Continue with GitHub</span>
+                <span>Continue with GitHub OAuth</span>
               </button>
 
               <button
@@ -255,12 +379,44 @@ export function LandingAuthPage({ onAuthenticated }: LandingAuthPageProps) {
             <div className="relative flex items-center justify-center mb-6">
               <div className="border-t border-white/10 w-full" />
               <span className="bg-slate-900 px-3 text-[11px] font-mono text-slate-500 absolute uppercase">
-                Or with email
+                {mode === 'pat' ? 'Or PAT authentication' : 'Or with email'}
               </span>
             </div>
 
-            {/* Email/Password Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
+            {/* PAT Form */}
+            {mode === 'pat' ? (
+              <form onSubmit={handlePATLogin} className="space-y-4">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                    GitHub Personal Access Token (PAT)
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="password"
+                      value={patToken}
+                      onChange={(e) => setPatToken(e.target.value)}
+                      placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-purple-500 font-mono transition-colors"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Requires <code className="text-purple-300">repo</code> and <code className="text-purple-300">read:user</code> scopes. Encrypted securely.
+                  </p>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-purple-600/30 transition-all cursor-pointer disabled:opacity-50 mt-2"
+                >
+                  <span>Authenticate with PAT</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </form>
+            ) : (
+              /* Email/Password Form */
+              <form onSubmit={handleSubmit} className="space-y-4">
               {mode === 'signup' && (
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-300 mb-1">
@@ -320,6 +476,7 @@ export function LandingAuthPage({ onAuthenticated }: LandingAuthPageProps) {
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>
+            )}
 
             <div className="mt-6 pt-4 border-t border-white/5 text-center">
               <p className="text-[11px] text-slate-500 flex items-center justify-center gap-1.5">

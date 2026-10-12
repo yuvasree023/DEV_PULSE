@@ -338,6 +338,34 @@ export interface UserProfile {
   provider: 'github' | 'email' | 'google' | 'antigravity';
 }
 
+export interface TrackedRepository {
+  id: number;
+  github_id: number;
+  name: string;
+  full_name: string;
+  html_url: string;
+  description: string | null;
+  language: string | null;
+  is_selected: boolean;
+  sync_status: 'idle' | 'pending' | 'syncing' | 'completed' | 'failed';
+  sync_progress: string | null;
+  last_synced_at: string | null;
+  pr_count: number;
+  commit_count: number;
+  stars: number;
+  forks: number;
+  is_private: boolean;
+}
+
+export interface GitHubSyncStatus {
+  overall_status: 'idle' | 'syncing' | 'completed' | 'partial' | 'failed';
+  total_selected: number;
+  synced_count: number;
+  active_syncs: number;
+  last_synced_at: string | null;
+  repositories: TrackedRepository[];
+}
+
 // -------------------------------------------------------------
 // Developer Tool Integrations
 // -------------------------------------------------------------

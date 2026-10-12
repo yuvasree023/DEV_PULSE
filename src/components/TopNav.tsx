@@ -36,6 +36,11 @@ export function TopNav({
   const [isAiMenuOpen, setIsAiMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [user, setUser] = useState(authAndIntegrationsService.getUser());
+  const [trackedRepos, setTrackedRepos] = useState<any[]>([]);
+  const [selectedRepoId, setSelectedRepoId] = useState<string>('all');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
+
   const menuRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
@@ -45,6 +50,38 @@ export function TopNav({
     });
     return unsubscribe;
   }, []);
+
+  const loadTracked = async () => {
+    try {
+      const { api } = await import('../api');
+      const data = await api.github.getTrackedRepositories();
+      setTrackedRepos(data.tracked_repositories || []);
+    } catch {
+      // Ignore if offline
+    }
+  };
+
+  useEffect(() => {
+    loadTracked();
+  }, []);
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    setSyncStatus('Syncing with GitHub...');
+    try {
+      const { api } = await import('../api');
+      const repoIds = selectedRepoId !== 'all' ? [parseInt(selectedRepoId, 10)] : undefined;
+      await api.github.triggerSync(repoIds);
+      setSyncStatus('Sync complete');
+      setTimeout(() => setSyncStatus(null), 3000);
+      loadTracked();
+    } catch {
+      setSyncStatus('Sync queued');
+      setTimeout(() => setSyncStatus(null), 3000);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Close menus on outside click
   useEffect(() => {
@@ -221,6 +258,34 @@ export function TopNav({
 
       {/* Secondary Actions & Profiles */}
       <div className="flex items-center gap-2.5">
+        {/* Tracked Repository Selector */}
+        {trackedRepos.length > 0 && (
+          <div className="hidden md:flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <FolderGit2 className="w-3.5 h-3.5 text-purple-600 ml-1.5" />
+            <select
+              value={selectedRepoId}
+              onChange={(e) => setSelectedRepoId(e.target.value)}
+              className="bg-transparent text-xs font-semibold text-slate-800 focus:outline-none pr-2 cursor-pointer"
+            >
+              <option value="all">All Tracked Repositories ({trackedRepos.length})</option>
+              {trackedRepos.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name || r.full_name}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={handleManualSync}
+              disabled={isSyncing}
+              title="Manually synchronize latest commits, PRs, and reviews"
+              className="px-2 py-1 rounded-lg bg-white hover:bg-slate-50 text-[11px] font-bold text-purple-700 shadow-2xs border border-slate-200 flex items-center gap-1 cursor-pointer disabled:opacity-50"
+            >
+              <Activity className={`w-3 h-3 ${isSyncing ? 'animate-spin text-purple-600' : 'text-emerald-500'}`} />
+              <span>{isSyncing ? 'Syncing...' : syncStatus || 'Sync Now'}</span>
+            </button>
+          </div>
+        )}
+
         {/* Onboarding Quick Link */}
         <button
           onClick={() => onSelectNav('onboarding')}

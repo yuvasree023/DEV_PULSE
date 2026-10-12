@@ -276,11 +276,28 @@ def trigger_background_sync(background_tasks: BackgroundTasks):
 
 @router.get("/productivity/realtime", summary="Real-time productivity telemetry & flow index")
 @router.get("/api/productivity/realtime", include_in_schema=False)
-def get_realtime_productivity():
+def get_realtime_productivity(
+    repo_id: Optional[int] = Query(None, description="Optional repository ID filter"),
+):
     """
     Computes real-time Flow State Index, daily code velocity, and task efficiency
     grounded in Yuvasree's Custom Machine Learning & AI Productivity Engine.
     """
+    try:
+        from app.database import SessionLocal
+        from app.services.auth import get_or_create_demo_user
+        from app.services.real_metrics import calculate_real_productivity_telemetry
+        db = SessionLocal()
+        try:
+            demo_user = get_or_create_demo_user(db)
+            real_telemetry = calculate_real_productivity_telemetry(demo_user.id, db, repo_id=repo_id)
+            if real_telemetry.get("hourlyVelocity"):
+                return real_telemetry
+        finally:
+            db.close()
+    except Exception as e:
+        logger.debug(f"Falling back to default telemetry: {e}")
+
     now_str = datetime.now(timezone.utc).strftime("%H:%M:%S UTC")
 
     hourly_velocity = [

@@ -81,8 +81,99 @@ export function RepositoriesView({ }: RepositoriesViewProps) {
     );
   }
 
+  const [trackedRepos, setTrackedRepos] = useState<any[]>([]);
+  const [syncingAll, setSyncingAll] = useState(false);
+
+  const loadTrackedRepos = async () => {
+    try {
+      const data = await api.github.getTrackedRepositories();
+      setTrackedRepos(data.tracked_repositories || []);
+    } catch {
+      // Ignore
+    }
+  };
+
+  useEffect(() => {
+    loadTrackedRepos();
+  }, []);
+
+  const handleSyncAll = async () => {
+    setSyncingAll(true);
+    try {
+      await api.github.triggerSync();
+      await loadTrackedRepos();
+      await loadData();
+    } catch (e) {
+      console.warn('Sync trigger error:', e);
+    } finally {
+      setSyncingAll(false);
+    }
+  };
+
   return (
-    <div id="repositories-view" className="space-y-4">
+    <div id="repositories-view" className="space-y-6">
+      {/* Tracked Repositories Card */}
+      {trackedRepos.length > 0 && (
+        <div className="bg-gradient-to-r from-purple-900 to-indigo-950 text-white rounded-3xl p-6 shadow-xl space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-extrabold text-white">Your Tracked Repositories</h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-purple-500/20 text-purple-200 border border-purple-400/30">
+                  {trackedRepos.length} Synced
+                </span>
+              </div>
+              <p className="text-xs text-purple-200/80 mt-0.5">
+                Real pull request and commit telemetry synchronizing directly into PostgreSQL.
+              </p>
+            </div>
+            <button
+              onClick={handleSyncAll}
+              disabled={syncingAll}
+              className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${syncingAll ? 'animate-spin' : ''}`} />
+              <span>{syncingAll ? 'Synchronizing...' : 'Sync All Repositories'}</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {trackedRepos.map((repo) => (
+              <div
+                key={repo.id}
+                className="p-3.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md space-y-2 hover:bg-white/10 transition-all"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold text-white truncate block">
+                      {repo.name}
+                    </span>
+                    <span className="text-[10px] text-purple-300 font-mono truncate block">
+                      {repo.full_name}
+                    </span>
+                  </div>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
+                    repo.sync_status === 'completed'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                      : repo.sync_status === 'syncing'
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse'
+                      : 'bg-white/10 text-slate-300'
+                  }`}>
+                    {repo.sync_status}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-slate-300 pt-1 border-t border-white/5 font-mono">
+                  <span>PRs: <strong className="text-white">{repo.pr_count ?? 0}</strong></span>
+                  <span>Commits: <strong className="text-white">{repo.commit_count ?? 0}</strong></span>
+                  <span>Lang: <strong className="text-purple-300">{repo.language || 'Code'}</strong></span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2.5">

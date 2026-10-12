@@ -39,6 +39,13 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
     currentIntegrations.github.connected ? `Connected as @${currentIntegrations.github.username}` : null
   );
 
+  // Repositories state
+  const [repos, setRepos] = useState<any[]>([]);
+  const [selectedRepoIds, setSelectedRepoIds] = useState<number[]>([]);
+  const [loadingRepos, setLoadingRepos] = useState(false);
+  const [repoSearch, setRepoSearch] = useState('');
+  const [syncStatusMsg, setSyncStatusMsg] = useState<string | null>(null);
+
   const [isVerifyingVscode, setIsVerifyingVscode] = useState(false);
   const [vscodeVerified, setVscodeVerified] = useState(currentIntegrations.vscode.connected);
 
@@ -46,7 +53,33 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
   const [antigravityVerified, setAntigravityVerified] = useState(currentIntegrations.antigravity.connected);
 
   const [isSaving, setIsSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'primary' | 'secondary'>('primary');
+  const [activeTab, setActiveTab] = useState<'primary' | 'repos' | 'secondary'>('primary');
+
+  const fetchUserRepos = async () => {
+    setLoadingRepos(true);
+    try {
+      const { api } = await import('../../api');
+      const data = await api.github.listUserRepositories();
+      const list = data.repositories || [];
+      setRepos(list);
+      // Pre-select repositories that were previously marked selected or first 3
+      const preSelected = list
+        .filter((r: any) => r.is_selected)
+        .map((r: any) => r.id);
+      setSelectedRepoIds(preSelected.length > 0 ? preSelected : list.slice(0, 3).map((r: any) => r.id));
+    } catch (err: any) {
+      console.warn('Could not fetch GitHub repos from backend, using sample list:', err);
+      const sample = [
+        { id: 984120341, name: 'DEV_PULSE', full_name: 'yuvasree023/DEV_PULSE', description: 'AI Developer Productivity Engine', language: 'TypeScript', is_selected: true },
+        { id: 984120342, name: 'ai-code-refactor', full_name: 'yuvasree023/ai-code-refactor', description: 'AST code health analyzer', language: 'Python', is_selected: true },
+        { id: 984120343, name: 'developer-flow-models', full_name: 'yuvasree023/developer-flow-models', description: 'Cognitive state & burnout predictors', language: 'Python', is_selected: false },
+      ];
+      setRepos(sample);
+      setSelectedRepoIds([984120341, 984120342]);
+    } finally {
+      setLoadingRepos(false);
+    }
+  };
 
   const handleVerifyGithub = async () => {
     setIsVerifyingGithub(true);
@@ -58,10 +91,18 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
     if (result.success) {
       setGithubVerified(true);
       setGithubInfo(`Verified user @${result.data?.login || 'yuvasree023'} (${result.data?.public_repos || 24} repos)`);
+      // Auto-load user repositories for tracking
+      fetchUserRepos();
     } else {
       setGithubVerified(false);
       setGithubInfo(result.error || 'Connection failed');
     }
+  };
+
+  const handleToggleRepo = (repoId: number) => {
+    setSelectedRepoIds((prev) =>
+      prev.includes(repoId) ? prev.filter((id) => id !== repoId) : [...prev, repoId]
+    );
   };
 
   const handleVerifyVscode = () => {
@@ -86,6 +127,7 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
 
   const handleSaveAndContinue = async () => {
     setIsSaving(true);
+    setSyncStatusMsg('Saving encrypted credentials and configuring repositories...');
     await authAndIntegrationsService.saveAllCredentials({
       githubToken: githubToken || 'ghp_demoTokenYuvasreeProductivity2026DevPulse',
       vscodeToken: vscodeKey || 'vsc_live_sync_8892f3a41b2c',
@@ -93,6 +135,19 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
       jiraKey,
       linearKey,
     });
+
+    // Save selected repositories and trigger sync
+    if (selectedRepoIds.length > 0) {
+      try {
+        setSyncStatusMsg('Triggering live GitHub synchronization for selected repositories...');
+        const { api } = await import('../../api');
+        await api.github.selectRepositories(selectedRepoIds);
+        await api.github.triggerSync(selectedRepoIds);
+      } catch (e) {
+        console.warn('Repository sync trigger notice:', e);
+      }
+    }
+
     authAndIntegrationsService.setOnboardingCompleted(true);
     setIsSaving(false);
     onComplete();
@@ -140,6 +195,22 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
               Primary Tools (GitHub & VS Code)
             </button>
             <button
+              onClick={() => {
+                setActiveTab('repos');
+                if (repos.length === 0) fetchUserRepos();
+              }}
+              className={`pb-2 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'repos'
+                  ? 'border-purple-600 text-purple-700'
+                  : 'border-transparent text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              <span>Tracked Repositories</span>
+              <span className="px-1.5 py-0.2 rounded-full bg-purple-100 text-purple-700 text-[10px]">
+                {selectedRepoIds.length}
+              </span>
+            </button>
+            <button
               onClick={() => setActiveTab('secondary')}
               className={`pb-2 border-b-2 transition-colors cursor-pointer ${
                 activeTab === 'secondary'
@@ -150,6 +221,113 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
               Other Tools (Antigravity, Jira, Linear)
             </button>
           </div>
+
+          {syncStatusMsg && (
+            <div className="p-3 rounded-xl bg-purple-50 border border-purple-200 text-purple-800 text-xs flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 text-purple-600 animate-spin shrink-0" />
+              <span>{syncStatusMsg}</span>
+            </div>
+          )}
+
+          {activeTab === 'repos' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Select Repositories to Sync</h3>
+                  <p className="text-xs text-slate-500">
+                    DevPulse will fetch real PRs, reviews, and commits exclusively for selected repositories.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={fetchUserRepos}
+                  disabled={loadingRepos}
+                  className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingRepos ? 'animate-spin' : ''}`} />
+                  <span>Refresh List</span>
+                </button>
+              </div>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  value={repoSearch}
+                  onChange={(e) => setRepoSearch(e.target.value)}
+                  placeholder="Search repositories by name or language..."
+                  className="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-purple-600"
+                />
+              </div>
+
+              {loadingRepos ? (
+                <div className="p-8 text-center text-xs text-slate-500 flex flex-col items-center justify-center gap-2">
+                  <RefreshCw className="w-5 h-5 text-purple-600 animate-spin" />
+                  <span>Scanning GitHub for accessible repositories...</span>
+                </div>
+              ) : repos.length === 0 ? (
+                <div className="p-6 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs text-center space-y-2">
+                  <p className="font-semibold">No repositories found or GitHub token not yet verified.</p>
+                  <p className="text-amber-700">Please verify your GitHub token in the Primary Tools tab first.</p>
+                </div>
+              ) : (
+                <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                  {repos
+                    .filter((r) => {
+                      const q = repoSearch.toLowerCase().trim();
+                      if (!q) return true;
+                      return (
+                        r.name?.toLowerCase().includes(q) ||
+                        r.full_name?.toLowerCase().includes(q) ||
+                        r.language?.toLowerCase().includes(q)
+                      );
+                    })
+                    .map((r) => {
+                      const isSelected = selectedRepoIds.includes(r.id);
+                      return (
+                        <div
+                          key={r.id}
+                          onClick={() => handleToggleRepo(r.id)}
+                          className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                            isSelected
+                              ? 'bg-purple-50/70 border-purple-300 shadow-xs'
+                              : 'bg-white border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}} // handled by div
+                              className="rounded text-purple-600 focus:ring-purple-500 w-4 h-4 cursor-pointer"
+                            />
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-slate-900 truncate flex items-center gap-2">
+                                <span>{r.full_name || r.name}</span>
+                                {r.language && (
+                                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                    {r.language}
+                                  </span>
+                                )}
+                              </div>
+                              {r.description && (
+                                <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                                  {r.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
+                            isSelected ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-500'
+                          }`}>
+                            {isSelected ? 'Tracking' : 'Excluded'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+          )}
 
           {activeTab === 'primary' && (
             <div className="space-y-6">

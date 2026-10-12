@@ -9,10 +9,20 @@ try:
     from app.services.gemini import gemini_service
     from app.services.precomputed import load_precomputed
     from app.config import settings
+    from app.database import get_db
+    from app.services.auth import get_current_user_optional
+    from app.models.user import User
+    from app.services.real_metrics import calculate_real_overview_metrics, calculate_real_ai_impact
 except ImportError:
     from backend.app.services.gemini import gemini_service
     from backend.app.services.precomputed import load_precomputed
     from backend.app.config import settings
+    from backend.app.database import get_db
+    from backend.app.services.auth import get_current_user_optional
+    from backend.app.models.user import User
+    from backend.app.services.real_metrics import calculate_real_overview_metrics, calculate_real_ai_impact
+from fastapi import Depends
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger("app.routers.dashboard")
 
@@ -25,8 +35,18 @@ class ExplainRequest(BaseModel):
 
 
 @router.get("/overview", summary="Get top-level real KPI metrics and weekly throughput")
-def get_overview():
+def get_overview(
+    repo_id: Optional[int] = Query(None, description="Optional repository ID filter"),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    db: Session = Depends(get_db),
+):
     try:
+        # If user is authenticated and has synced repository data in DB, return real user-scoped metrics
+        if current_user:
+            user_metrics = calculate_real_overview_metrics(current_user.id, db, repo_id=repo_id)
+            if user_metrics.get("total_prs", 0) > 0 or repo_id is not None:
+                return user_metrics
+
         if settings.USE_PRECOMPUTED:
             return load_precomputed()["overview"]
         try:
@@ -43,8 +63,17 @@ def get_overview():
 @router.get("/api/ai-impact", include_in_schema=False)
 @router.get("/analytics/ai-impact", include_in_schema=False)
 @router.get("/v1/analytics/ai-impact", include_in_schema=False)
-def get_ai_impact():
+def get_ai_impact(
+    repo_id: Optional[int] = Query(None, description="Optional repository ID filter"),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    db: Session = Depends(get_db),
+):
     try:
+        if current_user:
+            user_impact = calculate_real_ai_impact(current_user.id, db, repo_id=repo_id)
+            if user_impact.get("summary", {}).get("ai_prs", 0) > 0 or repo_id is not None:
+                return user_impact
+
         if settings.USE_PRECOMPUTED:
             return load_precomputed()["ai_impact"]
         try:

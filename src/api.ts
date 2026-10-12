@@ -28,10 +28,36 @@ export class ApiError extends Error {
   }
 }
 
+function getAuthToken(): string | null {
+  try {
+    const raw = localStorage.getItem('devpulse_jwt_token');
+    if (raw) return raw;
+    // Check cookie
+    const match = document.cookie.match(new RegExp('(^| )devpulse_auth_token=([^;]+)'));
+    if (match) return match[2];
+  } catch {
+    // Ignore in SSR
+  }
+  return null;
+}
+
 async function fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
+  const token = getAuthToken();
+
+  const headers = new Headers(options?.headers || {});
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  const finalOptions: RequestInit = {
+    ...options,
+    headers,
+    credentials: 'include',
+  };
+
   try {
-    const response = await fetch(url, options);
+    const response = await fetch(url, finalOptions);
     if (!response.ok) {
       const errorBody = await response.text();
       const cleanBody = errorBody.length > 200 ? errorBody.slice(0, 200) + '...' : errorBody;
@@ -97,9 +123,16 @@ export const api = {
 
   checkServerHealthWithRetry,
 
-  getOverview: (): Promise<OverviewMetrics> => fetchJson<OverviewMetrics>('/api/overview'),
+  // Real data dashboard with optional repo_id filtering
+  getOverview: (repoId?: number | null): Promise<OverviewMetrics> => {
+    const query = repoId ? `?repo_id=${repoId}` : '';
+    return fetchJson<OverviewMetrics>(`/api/overview${query}`);
+  },
   
-  getAIImpact: (): Promise<AIImpactMetrics> => fetchJson<AIImpactMetrics>('/api/ai-impact'),
+  getAIImpact: (repoId?: number | null): Promise<AIImpactMetrics> => {
+    const query = repoId ? `?repo_id=${repoId}` : '';
+    return fetchJson<AIImpactMetrics>(`/api/ai-impact${query}`);
+  },
   
   getAITools: (): Promise<AIToolsResponse> => fetchJson<AIToolsResponse>('/api/ai-tools'),
   
@@ -294,6 +327,70 @@ export const api = {
     } catch {
       return { success: true, status: 'simulated_local_sync' };
     }
+  },
+
+  // -------------------------------------------------------------
+  // GitHub OAuth & Session APIs
+  // -------------------------------------------------------------
+  auth: {
+    getGithubOAuthUrl: (): Promise<{ oauth_configured: boolean; url: string | null; message?: string }> =>
+      fetchJson<{ oauth_configured: boolean; url: string | null; message?: string }>('/api/auth/github'),
+
+    githubCallback: (code: string): Promise<{ access_token: string; token_type: string; user: any }> =>
+      fetchJson<{ access_token: string; token_type: string; user: any }>('/api/auth/github/callback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
+      }),
+
+    loginWithPAT: (token: string): Promise<{ access_token: string; token_type: string; user: any }> =>
+      fetchJson<{ access_token: string; token_type: string; user: any }>('/api/auth/pat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      }),
+
+    loginDemo: (): Promise<{ access_token: string; token_type: string; user: any }> =>
+      fetchJson<{ access_token: string; token_type: string; user: any }>('/api/auth/demo', {
+        method: 'POST'
+      }),
+
+    getMe: (): Promise<{ authenticated: boolean; user: any }> =>
+      fetchJson<{ authenticated: boolean; user: any }>('/api/auth/me'),
+
+    logout: (): Promise<{ success: boolean }> =>
+      fetchJson<{ success: boolean }>('/api/auth/logout', {
+        method: 'POST'
+      }),
+  },
+
+  // -------------------------------------------------------------
+  // GitHub Repositories & Real-Time Sync APIs
+  // -------------------------------------------------------------
+  github: {
+    listUserRepositories: (): Promise<{ repositories: any[]; total: number; selected_count: number }> =>
+      fetchJson<{ repositories: any[]; total: number; selected_count: number }>('/api/github/repos'),
+
+    getTrackedRepositories: (): Promise<{ tracked_repositories: any[]; total_tracked: number }> =>
+      fetchJson<{ tracked_repositories: any[]; total_tracked: number }>('/api/github/tracked'),
+
+    selectRepositories: (selectedRepoIds: number[]): Promise<{ success: boolean; selected_count: number }> =>
+      fetchJson<{ success: boolean; selected_count: number }>('/api/github/select', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ selected_repo_ids: selectedRepoIds })
+      }),
+
+    triggerSync: (repoIds?: number[]): Promise<{ success: boolean; status: string; sync_job_count: number }> =>
+      fetchJson<{ success: boolean; status: string; sync_job_count: number }>('/api/github/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repo_ids: repoIds || null })
+      }),
+
+    getSyncStatus: (): Promise<any> =>
+      fetchJson<any>('/api/github/sync-status'),
   }
 };
+
 

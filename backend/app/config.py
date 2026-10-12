@@ -12,13 +12,25 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     LOG_LEVEL: str = "INFO"
 
-    # Database Configuration (PostgreSQL 16 via Supabase, Railway, or local)
+    # Database Configuration (PostgreSQL 16 via Supabase, Railway, Render, or local SQLite)
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/devpulse"
+
+    # GitHub OAuth & Token Configuration
+    GITHUB_CLIENT_ID: str = ""
+    GITHUB_CLIENT_SECRET: str = ""
+    GITHUB_REDIRECT_URI: str = ""
+
+    # Security & User Sessions
+    JWT_SECRET: str = "devpulse-super-jwt-secret-key-render-2026"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    ENCRYPTION_SECRET_KEY: str = "devpulse-super-secret-render-key-2026"
+    FRONTEND_URL: str = "https://dev-pulse-lhnv-nine.vercel.app"
 
     # Google Gemini API
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.0-flash"
-    USE_PRECOMPUTED: bool = True
+    USE_PRECOMPUTED: bool = False
     PERSISTENT_DISK: bool = False
     LOW_MEMORY_MODE: bool = True
 
