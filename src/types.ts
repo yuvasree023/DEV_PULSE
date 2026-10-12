@@ -435,10 +435,11 @@ export interface RealTimeProductivityMetrics {
 // Dedicated AI Productivity Suite
 // -------------------------------------------------------------
 export type AIProductivitySuiteTab = 
+  | 'burnout-flow'
   | 'code-quality'
   | 'commit-docs'
-  | 'pr-reviewer'
-  | 'burnout-flow';
+  | 'pr-velocity'
+  | 'pr-reviewer';
 
 export interface CodeSmellItem {
   id: string;
@@ -518,7 +519,42 @@ export interface BurnoutPredictorResult {
   cognitiveFatigueScore: number;
   contextSwitchingPenalty: number;
   meetingFragmentationRatio: number;
+  uninterruptedFocusHours?: number;
   weeklyForecast: { day: string; projectedFatigue: number; flowProbability: number }[];
   actionableProtocols: { title: string; impact: string; action: string }[];
   modelAttribution: string;
 }
+
+export interface PRVelocityLikelihoodResult {
+  prSizeLines: number;
+  additions: number;
+  deletions: number;
+  filesChanged: number;
+  reviewerCount: number;
+  authorExperiencePrs: number;
+  predictedReviewLatencyHours: number;
+  mergeProbabilityPct: number;
+  mergeProbabilityConfidence: number;
+  riskCategory: 'Low Risk' | 'Moderate Risk' | 'High Friction';
+  shapFactors: { feature: string; impact: number; description: string; direction: 'positive' | 'negative' }[];
+  recommendations: string[];
+  modelAttribution: string;
+}
+
+export interface EncryptedCredentialsPayload {
+  github_token?: string;
+  vscode_token?: string;
+  antigravity_key?: string;
+  jira_key?: string;
+  linear_key?: string;
+}
+
+export interface OnboardingData {
+  githubToken: string;
+  vscodeToken: string;
+  antigravityKey: string;
+  jiraKey: string;
+  linearKey: string;
+  completed: boolean;
+}
+

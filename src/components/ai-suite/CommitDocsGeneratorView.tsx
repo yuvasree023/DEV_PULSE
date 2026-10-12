@@ -79,9 +79,16 @@ export function CommitDocsGeneratorView() {
             <FileText className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-slate-900">Commit Message & Documentation Generator</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold text-slate-900">
+                AI Commit & Documentation Generator
+              </h2>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
+                [ML-Powered]
+              </span>
+            </div>
             <p className="text-[11px] text-slate-500">
-              Synthesizes Conventional Commits, JSDoc/TypeDoc annotations, and changelogs from git diffs
+              Automated summaries generated from code diffs and PR metadata
             </p>
           </div>
         </div>

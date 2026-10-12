@@ -97,9 +97,16 @@ export function CodeQualityRefactorView() {
             <Cpu className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-slate-900">Code Quality & Refactoring Agent</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold text-slate-900">
+                ML Code Quality & Refactoring Agent
+              </h2>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
+                [ML-Powered]
+              </span>
+            </div>
             <p className="text-[11px] text-slate-500">
-              Evaluates AST cyclomatic complexity, code smells, and synthesizes clean design patterns
+              ML-driven analysis for static code health and refactoring recommendations
             </p>
           </div>
         </div>

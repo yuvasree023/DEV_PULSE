@@ -46,9 +46,16 @@ export function BurnoutFlowPredictorView() {
             <ShieldAlert className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-slate-900">Real-Time Burnout & Flow State Predictor</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold text-slate-900">
+                ML-Based Burnout & Flow State Predictor
+              </h2>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
+                [ML-Powered]
+              </span>
+            </div>
             <p className="text-[11px] text-slate-500">
-              Bi-directional telemetry modeling continuous focus, cognitive fatigue, and distraction penalties
+              Uses time-series ML analysis on commit timings, active coding hours, and work habits to predict fatigue risk
             </p>
           </div>
         </div>

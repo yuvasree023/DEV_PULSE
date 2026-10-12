@@ -10,8 +10,21 @@ import {
 const STORAGE_KEY_AUTH = 'devpulse_user_auth';
 const STORAGE_KEY_INTEGRATIONS = 'devpulse_integrations_v2';
 const STORAGE_KEY_EVENTS = 'devpulse_telemetry_events';
+const STORAGE_KEY_ONBOARDING = 'devpulse_onboarding_completed';
 
-// Default mock authenticated developer profile
+// Unauthenticated baseline user
+export const ANONYMOUS_USER: UserProfile = {
+  id: '',
+  name: 'Guest Developer',
+  email: '',
+  role: 'Developer',
+  team: '',
+  avatar: '',
+  isAuthenticated: false,
+  provider: 'email',
+};
+
+// Default mock authenticated developer profile (used for demo sign-in)
 export const DEFAULT_USER: UserProfile = {
   id: 'usr_dev_023',
   name: 'Yuvasree',
@@ -108,14 +121,48 @@ class AuthAndIntegrationsService {
     this.events = this.loadEvents();
   }
 
+  private syncCookies(token: string | null, onboarding: boolean) {
+    if (typeof document !== 'undefined') {
+      if (token) {
+        document.cookie = `devpulse_auth_token=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax`;
+      } else {
+        document.cookie = `devpulse_auth_token=; path=/; max-age=0; SameSite=Lax`;
+      }
+      document.cookie = `devpulse_onboarding_complete=${onboarding ? 'true' : 'false'}; path=/; max-age=604800; SameSite=Lax`;
+    }
+  }
+
   private loadUser(): UserProfile {
     try {
       const stored = localStorage.getItem(STORAGE_KEY_AUTH);
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        this.syncCookies(parsed.isAuthenticated ? parsed.id : null, this.isOnboardingCompleted());
+        return parsed;
+      }
     } catch (e) {
       console.warn('Failed to load user from localStorage', e);
     }
-    return DEFAULT_USER;
+    this.syncCookies(null, false);
+    return ANONYMOUS_USER;
+  }
+
+  public isOnboardingCompleted(): boolean {
+    try {
+      return localStorage.getItem(STORAGE_KEY_ONBOARDING) === 'true';
+    } catch {
+      return false;
+    }
+  }
+
+  public setOnboardingCompleted(completed: boolean) {
+    try {
+      localStorage.setItem(STORAGE_KEY_ONBOARDING, completed ? 'true' : 'false');
+      this.syncCookies(this.user.isAuthenticated ? this.user.id : null, completed);
+    } catch (e) {
+      console.error(e);
+    }
+    this.notify();
   }
 
   private loadIntegrations(): IntegrationsState {
@@ -161,19 +208,41 @@ class AuthAndIntegrationsService {
     this.listeners.forEach((l) => l());
   }
 
-  public login(name: string, email: string, provider: 'github' | 'email' | 'google' = 'github') {
+  public login(
+    name: string,
+    email: string,
+    provider: 'github' | 'email' | 'google' = 'github',
+    role: string = 'Staff AI Engineer',
+    team: string = 'Engineering Productivity'
+  ) {
+    const userId = `usr_${Date.now().toString(36)}`;
     this.user = {
-      id: `usr_${Date.now().toString(36)}`,
+      id: userId,
       name: name.trim() || 'Developer',
       email: email.trim() || 'developer@devpulse.ai',
-      role: 'Staff AI Engineer',
-      team: 'Engineering Productivity',
-      avatar: `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(name)}`,
+      role,
+      team,
+      avatar: name === 'Yuvasree' 
+        ? DEFAULT_USER.avatar 
+        : `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(name || 'dev')}`,
       isAuthenticated: true,
       provider,
     };
     try {
       localStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(this.user));
+      this.syncCookies(userId, this.isOnboardingCompleted());
+    } catch (e) {
+      console.error(e);
+    }
+    this.notify();
+  }
+
+  public loginAsDemo() {
+    this.user = { ...DEFAULT_USER, isAuthenticated: true };
+    try {
+      localStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(this.user));
+      this.setOnboardingCompleted(true);
+      this.syncCookies(this.user.id, true);
     } catch (e) {
       console.error(e);
     }
@@ -181,12 +250,11 @@ class AuthAndIntegrationsService {
   }
 
   public logout() {
-    this.user = {
-      ...this.user,
-      isAuthenticated: false,
-    };
+    this.user = { ...ANONYMOUS_USER };
     try {
-      localStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(this.user));
+      localStorage.removeItem(STORAGE_KEY_AUTH);
+      localStorage.removeItem(STORAGE_KEY_ONBOARDING);
+      this.syncCookies(null, false);
     } catch (e) {
       console.error(e);
     }
@@ -209,6 +277,44 @@ class AuthAndIntegrationsService {
     this.integrations.antigravity.apiKey = apiKey.trim();
     this.integrations.antigravity.agentMode = agentMode;
     this.saveIntegrations();
+  }
+
+  public async saveAllCredentials(params: {
+    githubToken?: string;
+    vscodeToken?: string;
+    antigravityKey?: string;
+    jiraKey?: string;
+    linearKey?: string;
+  }) {
+    if (params.githubToken !== undefined && params.githubToken.trim().length > 0) {
+      this.integrations.github.token = params.githubToken.trim();
+      this.integrations.github.connected = true;
+    }
+    if (params.vscodeToken !== undefined && params.vscodeToken.trim().length > 0) {
+      this.integrations.vscode.apiKey = params.vscodeToken.trim();
+      this.integrations.vscode.connected = true;
+    }
+    if (params.antigravityKey !== undefined && params.antigravityKey.trim().length > 0) {
+      this.integrations.antigravity.apiKey = params.antigravityKey.trim();
+      this.integrations.antigravity.connected = true;
+    }
+
+    this.saveIntegrations();
+
+    // Async background sync with Render backend
+    try {
+      const { api } = await import('../api');
+      await api.saveEncryptedCredentials({
+        github_token: params.githubToken,
+        vscode_token: params.vscodeToken,
+        antigravity_key: params.antigravityKey,
+        jira_key: params.jiraKey,
+        linear_key: params.linearKey,
+      });
+      await api.triggerBackgroundSync();
+    } catch (e) {
+      console.warn('Backend credential encryption sync notice:', e);
+    }
   }
 
   public disconnectIntegration(type: 'github' | 'vscode' | 'antigravity') {

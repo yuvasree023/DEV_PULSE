@@ -6,17 +6,15 @@ import {
   BrainCircuit,
   FolderGit2,
   Database,
-  HelpCircle,
   ChevronDown,
   Cpu,
   FileText,
-  Bot,
   ShieldAlert,
   Activity,
   Key,
-  Lock,
   LogOut,
-  User,
+  TrendingUp,
+  Compass,
 } from 'lucide-react';
 import { authAndIntegrationsService } from '../services/authAndIntegrations';
 
@@ -62,43 +60,34 @@ export function TopNav({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const navItems = [
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-    { id: 'realtime-engine', label: 'Real-Time Engine', icon: Activity, badge: 'Live' },
-    { id: 'ai-tools', label: 'AI Tools', icon: Wrench },
-    { id: 'ai-impact', label: 'AI Impact', icon: Sparkles },
-    { id: 'ml-insights', label: 'ML Insights', icon: BrainCircuit },
-    { id: 'repositories', label: 'Repositories', icon: FolderGit2 },
-  ];
-
   const aiSuiteItems = [
     {
+      id: 'ai-suite-burnout',
+      label: 'ML-Based Burnout & Flow State Predictor',
+      desc: 'Time-series analysis on commit cadence & active hours',
+      icon: ShieldAlert,
+      color: 'text-rose-600 bg-rose-50',
+    },
+    {
       id: 'ai-suite-quality',
-      label: 'Code Quality & Refactoring Agent',
-      desc: 'AST cyclomatic reduction & clean patterns',
+      label: 'ML Code Quality & Refactoring Agent',
+      desc: 'AST static health & automated refactoring guidance',
       icon: Cpu,
       color: 'text-purple-600 bg-purple-50',
     },
     {
       id: 'ai-suite-commit',
-      label: 'Commit Message & Documentation Generator',
-      desc: 'Conventional commits & docstrings from diffs',
+      label: 'AI Commit & Documentation Generator',
+      desc: 'Conventional commits & JSDoc from git diffs',
       icon: FileText,
       color: 'text-indigo-600 bg-indigo-50',
     },
     {
-      id: 'ai-suite-pr',
-      label: 'Automated PR Reviewer',
-      desc: '4-agent security, logic, and style review',
-      icon: Bot,
+      id: 'ai-suite-pr-velocity',
+      label: 'PR Velocity & Merge Likelihood Model',
+      desc: 'Predictive scoring for review latency & merge probability',
+      icon: TrendingUp,
       color: 'text-blue-600 bg-blue-50',
-    },
-    {
-      id: 'ai-suite-burnout',
-      label: 'Real-Time Burnout & Flow State Predictor',
-      desc: 'Continuous focus & cognitive fatigue forecast',
-      icon: ShieldAlert,
-      color: 'text-rose-600 bg-rose-50',
     },
   ];
 
@@ -113,12 +102,10 @@ export function TopNav({
         {/* Brand Logo */}
         <div
           className="flex items-center gap-2.5 cursor-pointer"
-          onClick={() => onSelectNav('overview')}
+          onClick={() => onSelectNav('dashboard')}
         >
           <div className="w-8 h-8 rounded-xl bg-purple-600 flex items-center justify-center text-white shadow-2xs">
-            <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-              <path d="M12 2a5 5 0 0 0-5 5c0 1.5.7 2.8 1.8 3.7A9.002 9.002 0 0 0 3 19a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1 9.002 9.002 0 0 0-5.8-8.3A5.002 5.002 0 0 0 17 7a5 5 0 0 0-5-5zm0 2a3 3 0 0 1 3 3 3 3 0 0 1-3 3 3 3 0 0 1-3-3 3 3 0 0 1 3-3z" />
-            </svg>
+            <Activity className="w-4 h-4" />
           </div>
           <div>
             <span className="font-bold text-base tracking-tight text-slate-900 block leading-none">
@@ -143,7 +130,7 @@ export function TopNav({
             <Sparkles className={`w-3.5 h-3.5 ${isAiSuiteActive ? 'text-amber-300' : 'text-purple-600'}`} />
             <span>AI Productivity Suite</span>
             <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-purple-800 text-purple-100">
-              ML
+              [ML-Powered]
             </span>
             <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isAiMenuOpen ? 'rotate-180' : ''}`} />
           </button>
@@ -151,18 +138,18 @@ export function TopNav({
           {/* Expanded AI Productivity Suite Dropdown Menu */}
           {isAiMenuOpen && (
             <div className="absolute left-0 mt-2 w-96 bg-white rounded-2xl shadow-2xl border border-slate-200/90 z-50 p-2 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-              {/* Mandatory Yuvasree ML Attribution Header */}
-              <div className="p-3 bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white rounded-xl mb-2">
-                <div className="flex items-center gap-2 text-xs font-extrabold text-amber-300">
-                  <BrainCircuit className="w-3.5 h-3.5" />
-                  <span>Yuvasree's ML Intelligence Framework</span>
+              {/* Mandatory Attribution Notice Header */}
+              <div className="p-3 bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-900 text-white rounded-xl mb-2">
+                <div className="flex items-center gap-2 text-xs font-black text-amber-300">
+                  <BrainCircuit className="w-4 h-4" />
+                  <span>AI Productivity Suite (ML-Powered)</span>
                 </div>
-                <p className="text-[11px] text-purple-100/90 mt-1 leading-snug">
-                  Powered by Yuvasree's custom ML pipeline and productivity intelligence framework.
+                <p className="text-[11px] text-purple-200 mt-1 leading-snug italic font-medium">
+                  "Powered by Yuvasree's Custom Machine Learning & AI Productivity Engine"
                 </p>
               </div>
 
-              {/* 4 Dedicated Sub-features */}
+              {/* 4 Dedicated ML Tools */}
               <div className="space-y-1">
                 {aiSuiteItems.map((item) => {
                   const Icon = item.icon;
@@ -183,9 +170,14 @@ export function TopNav({
                       <div className={`p-2 rounded-lg shrink-0 ${item.color}`}>
                         <Icon className="w-4 h-4" />
                       </div>
-                      <div className="space-y-0.5">
-                        <div className="text-xs font-bold leading-tight">{item.label}</div>
-                        <div className="text-[11px] text-slate-500 font-normal leading-tight">
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="text-xs font-bold leading-tight flex items-center justify-between">
+                          <span className="truncate">{item.label}</span>
+                          <span className="text-[9px] font-mono text-purple-600 bg-purple-50 px-1 rounded ml-1 shrink-0">
+                            [ML]
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 font-normal leading-tight line-clamp-1">
                           {item.desc}
                         </div>
                       </div>
@@ -195,10 +187,10 @@ export function TopNav({
               </div>
 
               <div className="mt-2 pt-2 border-t border-slate-100 px-2 pb-1 flex items-center justify-between text-[11px] text-slate-500">
-                <span className="font-mono">Real-time AST & K-Means</span>
+                <span className="font-mono text-[10px]">Real-Time AST & ML Scoring</span>
                 <button
                   onClick={() => {
-                    onSelectNav('ai-suite-quality');
+                    onSelectNav('ai-suite-burnout');
                     setIsAiMenuOpen(false);
                   }}
                   className="text-purple-600 font-bold hover:underline cursor-pointer"
@@ -213,9 +205,9 @@ export function TopNav({
         {/* Top Navigation Links */}
         <nav className="hidden lg:flex items-center gap-1">
           <button
-            onClick={() => onSelectNav('realtime-engine')}
+            onClick={() => onSelectNav('dashboard')}
             className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-              activeNav === 'realtime-engine'
+              activeNav === 'dashboard' || activeNav === 'realtime-engine'
                 ? 'text-purple-700 bg-purple-50 font-bold'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
@@ -229,6 +221,20 @@ export function TopNav({
 
       {/* Secondary Actions & Profiles */}
       <div className="flex items-center gap-2.5">
+        {/* Onboarding Quick Link */}
+        <button
+          onClick={() => onSelectNav('onboarding')}
+          title="Onboarding Setup & Developer Tool Connectors"
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+            activeNav === 'onboarding'
+              ? 'bg-purple-50 text-purple-700 border border-purple-200'
+              : 'text-slate-700 hover:text-slate-900 hover:bg-slate-50 border border-slate-200'
+          }`}
+        >
+          <Compass className="w-3.5 h-3.5 text-purple-600" />
+          <span className="hidden sm:inline">Onboarding</span>
+        </button>
+
         {/* Integrations Settings Shortcut */}
         <button
           onClick={() => onSelectNav('integrations')}
@@ -243,19 +249,6 @@ export function TopNav({
           <span className="hidden sm:inline">Integrations</span>
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
         </button>
-
-        {/* Explain Telemetry */}
-        {onOpenAiInsights && (
-          <button
-            id="btn-explain-telemetry-header"
-            onClick={onOpenAiInsights}
-            title="Explain observed metrics with Gemini"
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 border border-slate-200 transition-all cursor-pointer"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-            <span>Explain Telemetry</span>
-          </button>
-        )}
 
         {/* Dataset Modal */}
         {onOpenDatasetModal && (
@@ -280,11 +273,17 @@ export function TopNav({
             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
             className="flex items-center gap-2 p-1 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
           >
-            <img
-              src={user.avatar}
-              alt={user.name}
-              className="w-7 h-7 rounded-full border border-purple-300 object-cover"
-            />
+            {user.avatar ? (
+              <img
+                src={user.avatar}
+                alt={user.name}
+                className="w-7 h-7 rounded-full border border-purple-300 object-cover"
+              />
+            ) : (
+              <div className="w-7 h-7 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center">
+                {user.name.charAt(0)}
+              </div>
+            )}
             <span className="hidden md:inline text-xs font-bold text-slate-800">
               {user.name}
             </span>
@@ -302,6 +301,17 @@ export function TopNav({
 
               <button
                 onClick={() => {
+                  onSelectNav('onboarding');
+                  setIsProfileMenuOpen(false);
+                }}
+                className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 rounded-lg flex items-center gap-2 cursor-pointer"
+              >
+                <Compass className="w-3.5 h-3.5 text-slate-400" />
+                <span>Onboarding Wizard</span>
+              </button>
+
+              <button
+                onClick={() => {
                   onSelectNav('integrations');
                   setIsProfileMenuOpen(false);
                 }}
@@ -315,6 +325,7 @@ export function TopNav({
                 onClick={() => {
                   authAndIntegrationsService.logout();
                   setIsProfileMenuOpen(false);
+                  onSelectNav('landing');
                 }}
                 className="w-full text-left px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 rounded-lg flex items-center gap-2 cursor-pointer font-semibold"
               >

@@ -12,7 +12,8 @@ import {
   Bot,
   ShieldAlert,
   Key,
-  Flame,
+  TrendingUp,
+  Compass,
 } from 'lucide-react';
 
 interface LeftSidebarProps {
@@ -29,8 +30,8 @@ export function LeftSidebar({
   totalPrs,
 }: LeftSidebarProps) {
   const mainNavItems = [
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-    { id: 'realtime-engine', label: 'Real-Time Engine', icon: Activity, isLive: true },
+    { id: 'dashboard', label: 'Real-Time Dashboard', icon: Activity, isLive: true },
+    { id: 'overview', label: 'Team Overview', icon: LayoutDashboard },
     { id: 'ai-tools', label: 'AI Tools', icon: Wrench },
     { id: 'ai-impact', label: 'AI Impact', icon: Sparkles },
     { id: 'ml-insights', label: 'ML Insights', icon: BrainCircuit },
@@ -38,10 +39,30 @@ export function LeftSidebar({
   ];
 
   const aiSuiteItems = [
-    { id: 'ai-suite-quality', label: 'Code Quality & Refactor', icon: Cpu, badge: 'Agent' },
-    { id: 'ai-suite-commit', label: 'Commit & Docs Generator', icon: FileText, badge: 'Auto' },
-    { id: 'ai-suite-pr', label: 'Automated PR Reviewer', icon: Bot, badge: 'Swarm' },
-    { id: 'ai-suite-burnout', label: 'Burnout & Flow Predictor', icon: ShieldAlert, badge: 'Flow' },
+    {
+      id: 'ai-suite-burnout',
+      label: 'Burnout & Flow Predictor',
+      icon: ShieldAlert,
+      tag: 'ML-Powered',
+    },
+    {
+      id: 'ai-suite-quality',
+      label: 'Code Quality & Refactor',
+      icon: Cpu,
+      tag: 'ML-Powered',
+    },
+    {
+      id: 'ai-suite-commit',
+      label: 'Commit & Docs Generator',
+      icon: FileText,
+      tag: 'ML-Powered',
+    },
+    {
+      id: 'ai-suite-pr-velocity',
+      label: 'PR Velocity & Merge Likelihood',
+      icon: TrendingUp,
+      tag: 'ML-Powered',
+    },
   ];
 
   return (
@@ -50,16 +71,16 @@ export function LeftSidebar({
       className="w-64 bg-white border-r border-slate-200/90 shrink-0 p-4 flex flex-col justify-between hidden md:flex overflow-y-auto"
     >
       <div className="space-y-6">
-        {/* Section 1: Core Analytics */}
+        {/* Section 1: Core Analytics & Dashboard */}
         <div className="space-y-1.5">
           <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">
-            Analytics Product
+            Real-Time Analytics
           </div>
 
           <nav className="space-y-1">
             {mainNavItems.map((item) => {
               const Icon = item.icon;
-              const isActive = currentView === item.id;
+              const isActive = currentView === item.id || (item.id === 'dashboard' && currentView === 'realtime-engine');
 
               return (
                 <button
@@ -88,15 +109,12 @@ export function LeftSidebar({
           </nav>
         </div>
 
-        {/* Section 2: DEDICATED ML/AI PRODUCTIVITY SUITE */}
+        {/* Section 2: DEDICATED AI PRODUCTIVITY SUITE (ML-POWERED) */}
         <div className="space-y-2">
           <div className="px-2 flex items-center justify-between">
-            <span className="text-[10px] font-bold text-purple-900 uppercase tracking-wider flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-purple-600" />
-              AI Productivity Suite
-            </span>
-            <span className="text-[9px] font-mono text-purple-700 font-semibold px-1 rounded bg-purple-100">
-              Yuvasree ML
+            <span className="text-[10px] font-black text-purple-900 uppercase tracking-wider flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+              AI Productivity Suite (ML-Powered)
             </span>
           </div>
 
@@ -116,18 +134,18 @@ export function LeftSidebar({
                       : 'text-slate-600 hover:text-slate-900 hover:bg-purple-50/60'
                   }`}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-purple-600'}`} />
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-purple-600'}`} />
                     <span className="truncate">{item.label}</span>
                   </div>
                   <span
-                    className={`text-[9px] font-mono px-1.5 py-0.2 rounded ${
+                    className={`text-[9px] font-mono shrink-0 px-1.5 py-0.2 rounded ${
                       isActive
                         ? 'bg-purple-800 text-purple-100'
-                        : 'bg-slate-100 text-slate-500'
+                        : 'bg-purple-100/70 text-purple-700 font-bold'
                     }`}
                   >
-                    {item.badge}
+                    [{item.tag}]
                   </span>
                 </button>
               );
@@ -136,11 +154,30 @@ export function LeftSidebar({
         </div>
       </div>
 
-      {/* Secondary Bottom Section: Integrations & Evaluator Data */}
+      {/* Secondary Bottom Section: Integrations & Setup */}
       <div className="pt-4 border-t border-slate-100 space-y-2">
         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">
           Settings & Tool Connectors
         </div>
+
+        {/* Onboarding Flow Link */}
+        <button
+          id="sidebar-onboarding"
+          onClick={() => onSelectView('onboarding')}
+          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors border cursor-pointer ${
+            currentView === 'onboarding'
+              ? 'bg-purple-50 text-purple-700 font-bold border-purple-200'
+              : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Compass className="w-3.5 h-3.5 text-purple-600" />
+            <span>Onboarding Setup</span>
+          </div>
+          <span className="text-[9px] font-mono text-purple-600 bg-purple-100 px-1 rounded">
+            Step 2
+          </span>
+        </button>
 
         {/* Developer Tool Credentials Portal */}
         <button
@@ -176,8 +213,8 @@ export function LeftSidebar({
           )}
         </button>
 
-        <div className="px-2 py-1 text-[10px] text-slate-400 italic">
-          Powered by Yuvasree ML Framework
+        <div className="px-2 py-1 text-[10px] text-purple-700 font-medium leading-tight">
+          Powered by Yuvasree's Custom Machine Learning & AI Productivity Engine
         </div>
       </div>
     </aside>
