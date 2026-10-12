@@ -12,6 +12,8 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 db_url = settings.DATABASE_URL
+if db_url and db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
 
 # Fallback to SQLite if psycopg2 is missing or Postgres is default local
 if not db_url.startswith("sqlite"):
