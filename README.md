@@ -99,3 +99,27 @@ npm run dev
 | `POST` | `/api/upload-dataset` | Evaluator dynamic dataset upload & live recalculation |
 | `POST` | `/api/reset-dataset` | Reset back to baseline dataset |
 | `POST` | `/api/explain` | Grounded Gemini explanation layer |
+| `GET` | `/api/productivity/realtime` | Live Flow State Index, velocity, and telemetry stream |
+| `POST` | `/api/productivity/integrations/test` | Validate GitHub, VS Code, and Antigravity credentials |
+| `POST` | `/api/ai-suite/analyze-code` | AST code quality & multi-agent refactoring agent |
+| `POST` | `/api/ai-suite/generate-commit-docs` | Conventional commit & docstring generator |
+| `POST` | `/api/ai-suite/pr-review` | 4-agent swarm automated PR reviewer |
+| `POST` | `/api/ai-suite/flow-burnout` | Real-time burnout & flow state predictor |
+
+---
+
+## 🧠 Dedicated ML/AI Productivity Suite
+*Underlying metrics, models, and multi-agent workflows are **powered by Yuvasree's custom ML pipeline and productivity intelligence framework**.*
+
+1. **Code Quality & Refactoring Agent**: Decomposes AST complexity, detects unsound types and code smells, and synthesizes clean refactored proposals with complexity reduction metrics.
+2. **Commit Message & Documentation Generator**: Transforms raw `git diff` streams into Conventional Commits and production-ready JSDoc / TypeDoc / Markdown changelog annotations.
+3. **Automated PR Reviewer (4-Agent Swarm)**: Coordinated Security Scanner, Logic Defect Analyzer, Performance/Memory Profiler, and Style Enforcer with automated review comments.
+4. **Real-Time Burnout & Flow State Predictor**: Models continuous coding duration against meeting interruptions and context switching to forecast burnout risk and recommend Focus Shield protocols.
+
+---
+
+## 🔑 Developer Tool Integrations Portal
+- **GitHub**: Personal Access Token (PAT) connection with live rate limit inspection, verified username badge, and custom polling frequency.
+- **VS Code**: Companion extension telemetry integration, settings sync status, and incoming webhook endpoint.
+- **Google Antigravity**: API key connector for autonomous multi-agent pipelines and real-time swarm orchestration.
+

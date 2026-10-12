@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { PullRequest } from '../types';
 import { Bot, User, Clock, CheckCircle2, Plus, ListTodo } from 'lucide-react';
 import { ToolIconRenderer } from './ToolIcons';

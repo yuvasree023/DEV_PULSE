@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '../api';
 import { DatasetInfoResponse } from '../types';
 import { Database, Upload, RefreshCw, CheckCircle2, AlertTriangle, FileSpreadsheet, ArrowUpRight, RotateCcw } from 'lucide-react';

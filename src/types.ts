@@ -245,3 +245,280 @@ export interface BlockerAnalysis {
   severity: string;
   suggested_action: string;
 }
+
+// -------------------------------------------------------------
+// Legacy & Benchmark Interfaces
+// -------------------------------------------------------------
+export interface ToolOperationalImpact {
+  id: string;
+  name: string;
+  impactPercent: number;
+  subtext: string;
+  icon: string;
+  color: string;
+  badgeBg: string;
+}
+
+export interface AdoptionDistribution {
+  category: string;
+  percentage: number;
+  color: string;
+}
+
+export interface ThroughputBenchmark {
+  id: string;
+  name: string;
+  icon: string;
+  percentChange: number;
+  color: string;
+}
+
+export interface ToolComparisonRow {
+  id: string;
+  name: string;
+  icon: string;
+  usage: number;
+  velocity: number;
+  capacity: number;
+  sentiment: number;
+}
+
+export interface RadarDataPoint {
+  axis: string;
+  copilot: number;
+  cursor: number;
+  gemini: number;
+  sourcegraph: number;
+}
+
+export interface KPISummary {
+  total_prs: number;
+  merged_prs: number;
+  avg_cycle_time_hours: number;
+  avg_review_turnaround_hours: number;
+  ai_assisted_percentage: number;
+  throughput_per_week: number;
+  human_cycle_time_hours: number;
+  ai_cycle_time_hours: number;
+}
+
+export interface AgentBenchmark {
+  agent: string;
+  label: string;
+  pr_count: number;
+  avg_cycle_time_hours: number;
+  avg_review_turnaround_hours: number;
+  merge_rate_percent: number;
+  color: string;
+}
+
+export interface BlockedTask {
+  pr_id: number;
+  title: string;
+  user: string;
+  repo_name: string;
+  reason: string;
+  days_blocked: number;
+  agent: string | null;
+  created_at: string;
+  blocker_comment: string;
+}
+
+// -------------------------------------------------------------
+// Authentication & User Profile
+// -------------------------------------------------------------
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  team: string;
+  avatar: string;
+  isAuthenticated: boolean;
+  provider: 'github' | 'email' | 'google' | 'antigravity';
+}
+
+// -------------------------------------------------------------
+// Developer Tool Integrations
+// -------------------------------------------------------------
+export interface GitHubCredentials {
+  token: string;
+  username?: string;
+  connected: boolean;
+  lastSynced?: string;
+  avatarUrl?: string;
+  rateLimitRemaining?: number;
+  reposCount?: number;
+  syncFrequency: 'realtime' | '5min' | '15min' | 'manual';
+  scopes: string[];
+}
+
+export interface VSCodeCredentials {
+  apiKey: string;
+  webhookUrl?: string;
+  connected: boolean;
+  lastHeartbeat?: string;
+  activeWorkspace?: string;
+  todayActiveMinutes?: number;
+  extensionVersion?: string;
+  settingsSyncActive: boolean;
+}
+
+export interface AntigravityCredentials {
+  apiKey: string;
+  webhookSecret?: string;
+  connected: boolean;
+  lastPing?: string;
+  agentMode: 'autonomous' | 'pair-programmer' | 'evaluator';
+  activePipelinesCount?: number;
+}
+
+export interface IntegrationsState {
+  github: GitHubCredentials;
+  vscode: VSCodeCredentials;
+  antigravity: AntigravityCredentials;
+  lastTested?: string;
+}
+
+export interface TelemetryEvent {
+  id: string;
+  timestamp: string;
+  source: 'github' | 'vscode' | 'antigravity';
+  type: string;
+  title: string;
+  details: string;
+  impactScore?: number;
+}
+
+// -------------------------------------------------------------
+// Real-Time Productivity Measurement Engine
+// -------------------------------------------------------------
+export interface HourlyVelocityPoint {
+  hour: string;
+  commits: number;
+  linesChanged: number;
+  focusPct: number;
+}
+
+export interface HeatmapPoint {
+  date: string;
+  dayOfWeek: string;
+  hour: number;
+  intensity: number; // 0 to 4
+  count: number;
+}
+
+export interface RealTimeProductivityMetrics {
+  focusScore: number; // 0-100 Flow State Index
+  flowStateCategory: 'Peak Flow' | 'Optimal Flow' | 'Distracted' | 'Fatigued';
+  flowTrend: string;
+  dailyCodeVelocity: number; // commits & prs / active hour
+  hourlyVelocity: HourlyVelocityPoint[];
+  contributionHeatmap: HeatmapPoint[];
+  taskCompletionRatio: number; // 0-100%
+  completedTasksToday: number;
+  plannedTasksToday: number;
+  burnoutRiskScore: number; // 0-100
+  burnoutCategory: 'Optimal' | 'Mild Fatigue' | 'High Risk' | 'Critical Overwork';
+  contextSwitchingCount: number;
+  uninterruptedCodingMinutes: number;
+  lastCalculated: string;
+  liveStreaming: boolean;
+  telemetrySources: {
+    github: boolean;
+    vscode: boolean;
+    antigravity: boolean;
+  };
+}
+
+// -------------------------------------------------------------
+// Dedicated AI Productivity Suite
+// -------------------------------------------------------------
+export type AIProductivitySuiteTab = 
+  | 'code-quality'
+  | 'commit-docs'
+  | 'pr-reviewer'
+  | 'burnout-flow';
+
+export interface CodeSmellItem {
+  id: string;
+  type: string;
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  line: number;
+  message: string;
+  fix: string;
+}
+
+export interface CodeQualityAnalysisResult {
+  overallScore: number; // 0-100
+  maintainabilityIndex: number; // 0-100
+  cyclomaticComplexity: number;
+  cognitiveComplexity: number;
+  duplicationPercentage: number;
+  codeSmellsCount: number;
+  smells: CodeSmellItem[];
+  refactoredCode: string;
+  explanation: string;
+  modelAttribution: string;
+}
+
+export interface DocstringItem {
+  functionName: string;
+  signature: string;
+  jsDoc: string;
+  markdownDoc: string;
+}
+
+export interface CommitDocsResult {
+  conventionalCommit: string;
+  commitType: 'feat' | 'fix' | 'refactor' | 'perf' | 'docs' | 'chore';
+  scope: string;
+  shortSummary: string;
+  breakingChanges: string[];
+  docstrings: DocstringItem[];
+  changelogSnippet: string;
+  modelAttribution: string;
+}
+
+export interface SecurityVulnerability {
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  title: string;
+  cwe?: string;
+  line: number;
+  description: string;
+  remediation: string;
+}
+
+export interface LogicDefect {
+  title: string;
+  edgeCase: string;
+  suggestion: string;
+}
+
+export interface PerformanceFinding {
+  metric: string;
+  observation: string;
+  optimization: string;
+}
+
+export interface AutomatedPRReviewResult {
+  verdict: 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED';
+  overallScore: number; // 0-100
+  securityIssues: SecurityVulnerability[];
+  logicDefects: LogicDefect[];
+  performanceFindings: PerformanceFinding[];
+  styleNotes: { rule: string; suggestion: string }[];
+  summaryComment: string;
+  modelAttribution: string;
+}
+
+export interface BurnoutPredictorResult {
+  flowStateIndex: number;
+  burnoutRisk: 'Low' | 'Moderate' | 'High' | 'Severe';
+  cognitiveFatigueScore: number;
+  contextSwitchingPenalty: number;
+  meetingFragmentationRatio: number;
+  weeklyForecast: { day: string; projectedFatigue: number; flowProbability: number }[];
+  actionableProtocols: { title: string; impact: string; action: string }[];
+  modelAttribution: string;
+}

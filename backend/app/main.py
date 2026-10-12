@@ -26,6 +26,7 @@ try:
         ai_insights_router,
         pull_requests_router,
         repositories_router,
+        productivity_suite_router,
     )
     from app.routers.dashboard import router as dashboard_router
 except ImportError:
@@ -38,6 +39,7 @@ except ImportError:
         ai_insights_router,
         pull_requests_router,
         repositories_router,
+        productivity_suite_router,
     )
     from backend.app.routers.dashboard import router as dashboard_router
 
@@ -135,12 +137,15 @@ def health_check():
 
 # Register all /api core endpoints
 app.include_router(dashboard_router, prefix="/api")
+app.include_router(productivity_suite_router, prefix="/api")
 # Also register dashboard routes directly at root to handle stripped prefixes on Vercel
 app.include_router(dashboard_router)
+app.include_router(productivity_suite_router)
 
 # Register /api/v1 legacy routers & aliases
 api_v1_prefix = "/api/v1"
 app.include_router(dashboard_router, prefix=api_v1_prefix)
+app.include_router(productivity_suite_router, prefix=api_v1_prefix)
 app.include_router(analytics_router, prefix=api_v1_prefix)
 app.include_router(tasks_router, prefix=api_v1_prefix)
 app.include_router(ai_insights_router, prefix=api_v1_prefix)

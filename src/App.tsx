@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TopNav } from './components/TopNav';
 import { LeftSidebar } from './components/LeftSidebar';
 import { OverviewView } from './components/OverviewView';
@@ -9,12 +9,32 @@ import { RepositoriesView } from './components/RepositoriesView';
 import { DatasetModal } from './components/DatasetModal';
 import { AIInsightsModal } from './components/AIInsightsModal';
 import { ErrorCard } from './components/ErrorCard';
+import { RealTimeDashboardView } from './components/productivity/RealTimeDashboardView';
+import { IntegrationsView } from './components/integrations/IntegrationsView';
+import { AIProductivitySuiteHeader } from './components/ai-suite/AIProductivitySuiteHeader';
+import { CodeQualityRefactorView } from './components/ai-suite/CodeQualityRefactorView';
+import { CommitDocsGeneratorView } from './components/ai-suite/CommitDocsGeneratorView';
+import { AutomatedPRReviewerView } from './components/ai-suite/AutomatedPRReviewerView';
+import { BurnoutFlowPredictorView } from './components/ai-suite/BurnoutFlowPredictorView';
 import { api, API_BASE } from './api';
-import { OverviewMetrics } from './types';
-import { RefreshCw, Server, Zap } from 'lucide-react';
+import { OverviewMetrics, AIProductivitySuiteTab } from './types';
+import { RefreshCw, Zap } from 'lucide-react';
+
+export type AppView =
+  | 'overview'
+  | 'realtime-engine'
+  | 'ai-tools'
+  | 'ai-impact'
+  | 'ml-insights'
+  | 'repositories'
+  | 'ai-suite-quality'
+  | 'ai-suite-commit'
+  | 'ai-suite-pr'
+  | 'ai-suite-burnout'
+  | 'integrations';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<'overview' | 'ai-tools' | 'ai-impact' | 'ml-insights' | 'repositories'>('overview');
+  const [currentView, setCurrentView] = useState<AppView>('overview');
   const [isInsightsOpen, setIsInsightsOpen] = useState(false);
   const [isDatasetOpen, setIsDatasetOpen] = useState(false);
   const [overview, setOverview] = useState<OverviewMetrics | null>(null);
@@ -74,12 +94,28 @@ export default function App() {
     setRefreshKey((k) => k + 1);
   };
 
+  const getAiTabFromView = (view: AppView): AIProductivitySuiteTab => {
+    if (view === 'ai-suite-commit') return 'commit-docs';
+    if (view === 'ai-suite-pr') return 'pr-reviewer';
+    if (view === 'ai-suite-burnout') return 'burnout-flow';
+    return 'code-quality';
+  };
+
+  const handleSelectAiTab = (tab: AIProductivitySuiteTab) => {
+    if (tab === 'code-quality') setCurrentView('ai-suite-quality');
+    else if (tab === 'commit-docs') setCurrentView('ai-suite-commit');
+    else if (tab === 'pr-reviewer') setCurrentView('ai-suite-pr');
+    else if (tab === 'burnout-flow') setCurrentView('ai-suite-burnout');
+  };
+
+  const isAiSuite = currentView.startsWith('ai-suite');
+
   return (
     <div className="min-h-screen bg-[#f8f9fc] text-slate-800 antialiased font-sans flex flex-col">
-      {/* Top Navigation Bar with brand and primary 5 tabs */}
+      {/* Top Navigation Bar with brand, AI Suite dropdown, Live engine and user auth */}
       <TopNav
         activeNav={currentView}
-        onSelectNav={(view) => setCurrentView(view as any)}
+        onSelectNav={(view) => setCurrentView(view as AppView)}
         onOpenDatasetModal={() => setIsDatasetOpen(true)}
         onOpenAiInsights={() => setIsInsightsOpen(true)}
         totalPrs={overview?.total_prs}
@@ -87,10 +123,10 @@ export default function App() {
 
       {/* Main Workspace: Left Sidebar + Main Content Canvas */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar */}
+        {/* Left Sidebar with AI Productivity Suite section & Integrations */}
         <LeftSidebar
           currentView={currentView}
-          onSelectView={(view) => setCurrentView(view as any)}
+          onSelectView={(view) => setCurrentView(view as AppView)}
           onOpenDatasetModal={() => setIsDatasetOpen(true)}
           totalPrs={overview?.total_prs}
         />
@@ -131,12 +167,17 @@ export default function App() {
               />
             )}
 
+            {/* Standard Views */}
             {currentView === 'overview' && (
               <OverviewView
                 onNavigateToTools={() => setCurrentView('ai-tools')}
                 onNavigateToImpact={() => setCurrentView('ai-impact')}
                 onOpenAiInsights={() => setIsInsightsOpen(true)}
               />
+            )}
+
+            {currentView === 'realtime-engine' && (
+              <RealTimeDashboardView />
             )}
 
             {currentView === 'ai-tools' && (
@@ -153,6 +194,36 @@ export default function App() {
 
             {currentView === 'repositories' && (
               <RepositoriesView />
+            )}
+
+            {currentView === 'integrations' && (
+              <IntegrationsView />
+            )}
+
+            {/* Dedicated AI Productivity Suite Views with Yuvasree ML Attribution */}
+            {isAiSuite && (
+              <div>
+                <AIProductivitySuiteHeader
+                  activeTab={getAiTabFromView(currentView)}
+                  onSelectTab={handleSelectAiTab}
+                />
+
+                {currentView === 'ai-suite-quality' && (
+                  <CodeQualityRefactorView />
+                )}
+
+                {currentView === 'ai-suite-commit' && (
+                  <CommitDocsGeneratorView />
+                )}
+
+                {currentView === 'ai-suite-pr' && (
+                  <AutomatedPRReviewerView />
+                )}
+
+                {currentView === 'ai-suite-burnout' && (
+                  <BurnoutFlowPredictorView />
+                )}
+              </div>
             )}
           </div>
         </main>

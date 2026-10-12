@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import {
   OverviewMetrics,
   AIImpactMetrics,
@@ -153,5 +154,82 @@ export const api = {
     return fetchJson<{ status: string; message: string; meta: any }>('/api/reset-dataset', {
       method: 'POST'
     });
+  },
+
+  getRealtimeProductivity: async (): Promise<any> => {
+    try {
+      return await fetchJson<any>('/api/productivity/realtime');
+    } catch {
+      // Fallback to local engine when backend is offline or sleeping
+      const { productivityEngine } = await import('./services/productivityEngine');
+      return productivityEngine.getMetrics();
+    }
+  },
+
+  testIntegrationConnection: async (provider: 'github' | 'vscode' | 'antigravity', token: string): Promise<any> => {
+    try {
+      return await fetchJson<any>('/api/productivity/integrations/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, token })
+      });
+    } catch {
+      const { authAndIntegrationsService } = await import('./services/authAndIntegrations');
+      if (provider === 'github') return authAndIntegrationsService.testGitHubConnection(token);
+      if (provider === 'vscode') return authAndIntegrationsService.testVSCodeHeartbeat();
+      return authAndIntegrationsService.pingAntigravity();
+    }
+  },
+
+  analyzeCodeQuality: async (code: string, language = 'typescript'): Promise<any> => {
+    try {
+      return await fetchJson<any>('/api/ai-suite/analyze-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, language })
+      });
+    } catch {
+      const { analyzeCodeQuality } = await import('./services/aiProductivitySuite');
+      return analyzeCodeQuality(code, language);
+    }
+  },
+
+  generateCommitDocs: async (diff: string): Promise<any> => {
+    try {
+      return await fetchJson<any>('/api/ai-suite/generate-commit-docs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ diff })
+      });
+    } catch {
+      const { generateCommitAndDocs } = await import('./services/aiProductivitySuite');
+      return generateCommitAndDocs(diff);
+    }
+  },
+
+  runAutomatedPRReview: async (prTitle: string, prDiff: string): Promise<any> => {
+    try {
+      return await fetchJson<any>('/api/ai-suite/pr-review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pr_title: prTitle, pr_diff: prDiff })
+      });
+    } catch {
+      const { runAutomatedPRReview } = await import('./services/aiProductivitySuite');
+      return runAutomatedPRReview(prTitle, prDiff);
+    }
+  },
+
+  predictBurnoutFlow: async (activeHours = 5.5, meetingCount = 3): Promise<any> => {
+    try {
+      return await fetchJson<any>('/api/ai-suite/flow-burnout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active_hours: activeHours, meeting_count: meetingCount })
+      });
+    } catch {
+      const { predictBurnoutAndFlow } = await import('./services/aiProductivitySuite');
+      return predictBurnoutAndFlow(activeHours, meetingCount);
+    }
   }
 };

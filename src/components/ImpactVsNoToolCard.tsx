@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { RADAR_DATA } from '../mockData';
 import { CopilotIcon, CursorIcon, GeminiIcon, SourcegraphIcon } from './ToolIcons';
 
