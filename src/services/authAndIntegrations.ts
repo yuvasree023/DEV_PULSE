@@ -396,7 +396,14 @@ class AuthAndIntegrationsService {
   private saveIntegrations() {
     this.integrations.lastTested = new Date().toISOString();
     try {
-      localStorage.setItem(STORAGE_KEY_INTEGRATIONS, JSON.stringify(this.integrations));
+      // Never persist raw PATs / API keys to localStorage. Connection state and
+      // usernames are kept; secrets live only in memory and in the
+      // encrypted backend vault.
+      const scrubbed: IntegrationsState = JSON.parse(JSON.stringify(this.integrations));
+      if (scrubbed.github) scrubbed.github.token = '';
+      if (scrubbed.vscode) scrubbed.vscode.apiKey = '';
+      if (scrubbed.antigravity) scrubbed.antigravity.apiKey = '';
+      localStorage.setItem(STORAGE_KEY_INTEGRATIONS, JSON.stringify(scrubbed));
     } catch (e) {
       console.error(e);
     }
