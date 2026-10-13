@@ -11,10 +11,19 @@ from fastapi import APIRouter, HTTPException, Query, Body, BackgroundTasks
 from pydantic import BaseModel, Field
 import httpx
 
+from fastapi import Depends
+from sqlalchemy.orm import Session
+
 try:
     from app.services.security import encrypt_token, decrypt_token, mask_token
+    from app.services.auth import get_current_user_optional
+    from app.database import get_db
+    from app.models.user import User
 except ImportError:
     from backend.app.services.security import encrypt_token, decrypt_token, mask_token
+    from backend.app.services.auth import get_current_user_optional
+    from backend.app.database import get_db
+    from backend.app.models.user import User
 
 logger = logging.getLogger("app.routers.productivity_suite")
 
@@ -140,7 +149,10 @@ class BurnoutPredictRequest(BaseModel):
 def save_encrypted_credentials(
     req: SaveCredentialsRequest,
     background_tasks: BackgroundTasks,
+    current_user: "User | None" = Depends(get_current_user_optional),
 ):
+    if current_user is None:
+        raise HTTPException(status_code=401, detail="Authentication required.")
     """
     Encrypts user tokens with symmetric AES/HMAC encryption and initiates
     asynchronous background telemetry syncing.
@@ -195,7 +207,11 @@ def save_encrypted_credentials(
 
 @router.get("/integrations/credentials", summary="Retrieve masked developer tool integration status")
 @router.get("/api/integrations/credentials", include_in_schema=False)
-def get_credentials_status():
+def get_credentials_status(
+    current_user: "User | None" = Depends(get_current_user_optional),
+):
+    if current_user is None:
+        raise HTTPException(status_code=401, detail="Authentication required.")
     """
     Returns masked credentials and connection statuses without revealing raw secrets.
     """
@@ -217,7 +233,12 @@ def get_credentials_status():
 
 @router.post("/integrations/sync-background", summary="Trigger background sync of developer activity")
 @router.post("/api/integrations/sync-background", include_in_schema=False)
-def trigger_background_sync(background_tasks: BackgroundTasks):
+def trigger_background_sync(
+    background_tasks: BackgroundTasks,
+    current_user: "User | None" = Depends(get_current_user_optional),
+):
+    if current_user is None:
+        raise HTTPException(status_code=401, detail="Authentication required.")
     """
     Triggers an asynchronous background sync job to poll live GitHub and IDE activity.
     """
@@ -297,7 +318,12 @@ def get_realtime_productivity(
 
 @router.post("/productivity/integrations/test", summary="Verify developer tool credentials")
 @router.post("/api/productivity/integrations/test", include_in_schema=False)
-def test_integration(req: TestIntegrationRequest):
+def test_integration(
+    req: TestIntegrationRequest,
+    current_user: "User | None" = Depends(get_current_user_optional),
+):
+    if current_user is None:
+        raise HTTPException(status_code=401, detail="Authentication required.")
     """
     Validates token connection status against external developer tool APIs.
     """
