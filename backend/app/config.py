@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     ENCRYPTION_SECRET_KEY: str = "devpulse-super-secret-render-key-2026"
-    FRONTEND_URL: str = "https://dev-pulse-lhnv-nine.vercel.app"
+    FRONTEND_URL: str = "https://devpulse-app.vercel.app"
 
     # Google Gemini API
     GEMINI_API_KEY: str = ""
