@@ -31,6 +31,7 @@ try:
     from app.routers.dashboard import router as dashboard_router
     from app.routers.auth import router as auth_router
     from app.routers.github_integration import router as github_integration_router
+    from app.routers.activity import router as activity_router
 except ImportError:
     from backend.app.config import settings
     from backend.app.database import engine, Base, check_db_connection
@@ -46,6 +47,7 @@ except ImportError:
     from backend.app.routers.dashboard import router as dashboard_router
     from backend.app.routers.auth import router as auth_router
     from backend.app.routers.github_integration import router as github_integration_router
+    from backend.app.routers.activity import router as activity_router
 
 # Configure logging
 logging.basicConfig(
@@ -141,6 +143,7 @@ def health_check():
 
 # Register all /api core endpoints
 app.include_router(auth_router, prefix="/api")
+app.include_router(activity_router, prefix="/api")
 app.include_router(github_integration_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(productivity_suite_router, prefix="/api")
@@ -154,6 +157,7 @@ app.include_router(productivity_suite_router)
 # Register /api/v1 legacy routers & aliases
 api_v1_prefix = "/api/v1"
 app.include_router(auth_router, prefix=api_v1_prefix)
+app.include_router(activity_router, prefix=api_v1_prefix)
 app.include_router(github_integration_router, prefix=api_v1_prefix)
 app.include_router(dashboard_router, prefix=api_v1_prefix)
 app.include_router(productivity_suite_router, prefix=api_v1_prefix)
