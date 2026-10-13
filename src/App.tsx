@@ -11,6 +11,8 @@ import { AIInsightsModal } from './components/AIInsightsModal';
 import { ErrorCard } from './components/ErrorCard';
 import { RealTimeDashboardView } from './components/productivity/RealTimeDashboardView';
 import { IntegrationsView } from './components/integrations/IntegrationsView';
+import { ActivityView } from './components/ActivityView';
+import { PrivacyView } from './components/PrivacyView';
 import { LandingAuthPage } from './components/auth/LandingAuthPage';
 import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
 import { AIProductivitySuiteHeader } from './components/ai-suite/AIProductivitySuiteHeader';
@@ -39,7 +41,9 @@ export type AppView =
   | 'ai-suite-commit'
   | 'ai-suite-pr-velocity'
   | 'ai-suite-pr'
-  | 'integrations';
+  | 'integrations'
+  | 'activity'
+  | 'privacy';
 
 export default function App() {
   const [user, setUser] = useState<UserProfile>(authAndIntegrationsService.getUser());
@@ -116,6 +120,10 @@ export default function App() {
       setCurrentView('ml-insights');
     } else if (path === '/repositories') {
       setCurrentView('repositories');
+    } else if (path === '/activity') {
+      setCurrentView('activity');
+    } else if (path === '/privacy') {
+      setCurrentView('privacy');
     } else {
       setCurrentView('dashboard');
     }
@@ -147,6 +155,8 @@ export default function App() {
     else if (view === 'ai-impact') newPath = '/ai-impact';
     else if (view === 'ml-insights') newPath = '/ml-insights';
     else if (view === 'repositories') newPath = '/repositories';
+    else if (view === 'activity') newPath = '/activity';
+    else if (view === 'privacy') newPath = '/privacy';
 
     window.history.pushState(null, '', newPath);
   };
@@ -328,6 +338,8 @@ export default function App() {
               <RepositoriesView />
             )}
 
+            {currentView === 'activity' && <ActivityView />}
+            {currentView === 'privacy' && <PrivacyView />}
             {currentView === 'integrations' && (
               <IntegrationsView />
             )}
