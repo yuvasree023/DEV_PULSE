@@ -122,30 +122,6 @@ async def login_with_pat(req: PATLoginRequest, response: Response, db: Session =
     if not token:
         raise HTTPException(status_code=400, detail="Personal access token is required.")
 
-    # Check if demo token
-    if token.startswith("ghp_demo") or "Yuvasree" in token:
-        user = get_or_create_demo_user(db)
-        jwt_token = create_access_token({"sub": str(user.id), "username": user.username})
-        response.set_cookie(
-            key="devpulse_auth_token",
-            value=jwt_token,
-            max_age=60 * 60 * 24 * 7,
-            samesite="lax",
-        )
-        return {
-            "access_token": jwt_token,
-            "token_type": "bearer",
-            "user": {
-                "id": user.id,
-                "github_id": user.github_id,
-                "username": user.username,
-                "email": user.email,
-                "name": user.name,
-                "avatar_url": user.avatar_url,
-                "bio": user.bio,
-            },
-        }
-
     # Verify against live GitHub API
     github_profile = await fetch_github_user_profile(token)
     user = upsert_user_and_token(db, github_profile, token, scope="read:user,user:email", provider="github")
