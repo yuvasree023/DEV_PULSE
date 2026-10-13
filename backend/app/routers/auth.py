@@ -29,7 +29,7 @@ router = APIRouter(prefix="/auth", tags=["GitHub Authentication & User Sessions"
 
 
 class PATLoginRequest(BaseModel):
-    token: str = Field(..., description="GitHub Personal Access Token with repo,read:user scope")
+    token: str = Field(..., description="GitHub Personal Access Token (read:user for public data; add public_repo only for private repos)")
 
 
 class OAuthCallbackRequest(BaseModel):
@@ -50,7 +50,7 @@ def get_github_oauth_url():
         }
 
     redirect_uri = settings.GITHUB_REDIRECT_URI or f"{settings.FRONTEND_URL}/login"
-    scope = "read:user,user:email,repo"
+    scope = "read:user,user:email"
     oauth_url = (
         f"https://github.com/login/oauth/authorize?"
         f"client_id={client_id}&"
@@ -148,7 +148,7 @@ async def login_with_pat(req: PATLoginRequest, response: Response, db: Session =
 
     # Verify against live GitHub API
     github_profile = await fetch_github_user_profile(token)
-    user = upsert_user_and_token(db, github_profile, token, scope="repo,read:user", provider="github")
+    user = upsert_user_and_token(db, github_profile, token, scope="read:user,user:email", provider="github")
 
     jwt_token = create_access_token({"sub": str(user.id), "username": user.username})
     response.set_cookie(
