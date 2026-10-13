@@ -64,9 +64,12 @@ class Settings(BaseSettings):
         return self.DATABASE_URL.startswith("sqlite")
 
     def require_gemini_api_key(self) -> str:
-        """Fail clearly when production is configured to call Gemini without a key."""
-        if self.ENVIRONMENT.lower() == "production" and not self.GEMINI_API_KEY.strip():
-            raise RuntimeError("GEMINI_API_KEY is required in production for /api/explain.")
+        """Return the configured Gemini key.
+
+        Empty means no model is configured: services then use their
+        deterministic, data-grounded fallback explanations instead of
+        raising at request time.
+        """
         return self.GEMINI_API_KEY
 
     model_config = SettingsConfigDict(
