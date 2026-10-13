@@ -18,7 +18,7 @@ from fastapi.responses import JSONResponse
 
 try:
     from app.config import settings
-    from app.database import engine, Base, check_db_connection, DB_BACKEND, DB_ON_FALLBACK
+    from app.database import engine, Base, check_db_connection, DB_BACKEND, DB_ON_FALLBACK, IS_PRODUCTION
     from app.services.precomputed import PRECOMPUTED_PATH
     from app.routers import (
         analytics_router,
@@ -34,7 +34,7 @@ try:
     from app.routers.activity import router as activity_router
 except ImportError:
     from backend.app.config import settings
-    from backend.app.database import engine, Base, check_db_connection, DB_BACKEND, DB_ON_FALLBACK
+    from backend.app.database import engine, Base, check_db_connection, DB_BACKEND, DB_ON_FALLBACK, IS_PRODUCTION
     from backend.app.services.precomputed import PRECOMPUTED_PATH
     from backend.app.routers import (
         analytics_router,
@@ -125,8 +125,9 @@ app.add_middleware(
 def health_check():
     """Deployment and service health check endpoint."""
     is_connected = check_db_connection()
+    degraded = DB_ON_FALLBACK and IS_PRODUCTION
     return {
-        "status": "ok",
+        "status": "degraded" if degraded else "ok",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "db_connected": is_connected,
         "persistence_backend": DB_BACKEND,
