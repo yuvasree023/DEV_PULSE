@@ -72,6 +72,9 @@ export function CommitDocsGeneratorView() {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <span className="font-semibold">Simulated demo data.</span> These numbers are generated locally for illustration and are not your real activity. Real telemetry appears under My Activity once the VS Code extension or Colab connector sends sessions.
+      </div>
       {/* Action Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
         <div className="flex items-center gap-2">
