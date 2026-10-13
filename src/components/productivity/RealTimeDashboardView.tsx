@@ -57,6 +57,9 @@ export function RealTimeDashboardView() {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <span className="font-semibold">Simulated demo data.</span> These numbers are generated locally for illustration and are not your real activity. Real telemetry appears under My Activity once the VS Code extension or Colab connector sends sessions.
+      </div>
       {/* Real-Time Live Control Ribbon */}
       <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -164,7 +167,7 @@ export function RealTimeDashboardView() {
           </div>
           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            Polling Active
+            Simulated feed
           </span>
         </div>
 
@@ -186,7 +189,7 @@ export function RealTimeDashboardView() {
           </div>
           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-purple-600 animate-pulse" />
-            4 Agents Synced
+            Simulated agents
           </span>
         </div>
       </div>
@@ -442,4 +445,4 @@ export function RealTimeDashboardView() {
       </div>
     </div>
   );
-}
+      }
