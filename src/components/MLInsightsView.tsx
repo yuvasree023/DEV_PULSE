@@ -37,6 +37,9 @@ export function MLInsightsView({ onOpenAiInsights }: MLInsightsViewProps) {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[420px] space-y-3">
+      <div className="rounded-xl border border-sky-300 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+        <span className="font-semibold">Sample dataset analytics.</span> These charts come from a bundled public dataset of open-source projects, not from your GitHub account. Your authenticated GitHub activity appears under My Activity.
+      </div>
         <RefreshCw className="w-8 h-8 text-purple-600 animate-spin" />
         <p className="text-sm font-semibold text-slate-600">
           Running Scikit-learn K-Means workflow clustering on developer profiles...
@@ -262,4 +265,4 @@ export function MLInsightsView({ onOpenAiInsights }: MLInsightsViewProps) {
       </div>
     </div>
   );
-}
+        }
