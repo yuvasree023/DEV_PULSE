@@ -20,5 +20,3 @@ services:
         value: "https://dev-pulse-lhnv-nine.vercel.app,http://localhost:5173,http://localhost:3000,*"
       - key: DATABASE_URL
         sync: false
-      - key: GEMINI_API_KEY
-        sync: false
