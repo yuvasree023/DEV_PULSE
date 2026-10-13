@@ -94,8 +94,10 @@ export default function App() {
 
     // Step 3: Route mapping for authenticated users
     if (path === '/' || path === '/login' || path === '/dashboard') {
-      setCurrentView('dashboard');
+      setCurrentView('activity');
       window.history.replaceState(null, '', '/dashboard');
+    } else if (path === '/demo') {
+      setCurrentView('dashboard');
     } else if (path === '/onboarding') {
       setCurrentView('onboarding');
     } else if (path === '/overview') {
@@ -125,7 +127,8 @@ export default function App() {
     } else if (path === '/privacy') {
       setCurrentView('privacy');
     } else {
-      setCurrentView('dashboard');
+      setCurrentView('activity');
+      window.history.replaceState(null, '', '/dashboard');
     }
   };
 
@@ -143,7 +146,7 @@ export default function App() {
     let newPath = '/dashboard';
     if (view === 'landing') newPath = '/login';
     else if (view === 'onboarding') newPath = '/onboarding';
-    else if (view === 'dashboard' || view === 'realtime-engine') newPath = '/dashboard';
+    else if (view === 'dashboard' || view === 'realtime-engine') newPath = '/demo';
     else if (view === 'overview') newPath = '/overview';
     else if (view === 'integrations') newPath = '/settings/integrations';
     else if (view === 'ai-suite-burnout') newPath = '/ai-suite/burnout';
@@ -166,7 +169,7 @@ export default function App() {
     if (!isOnboardingDone) {
       navigateTo('onboarding');
     } else {
-      navigateTo('dashboard');
+      navigateTo('activity');
     }
   };
 
@@ -245,8 +248,8 @@ export default function App() {
   if (currentView === 'onboarding') {
     return (
       <OnboardingFlow
-        onComplete={() => navigateTo('dashboard')}
-        onSkip={() => navigateTo('dashboard')}
+        onComplete={() => navigateTo('activity')}
+        onSkip={() => navigateTo('activity')}
       />
     );
   }
@@ -391,4 +394,4 @@ export default function App() {
       />
     </div>
   );
-}
+      }
