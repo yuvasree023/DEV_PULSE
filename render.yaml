@@ -17,14 +17,14 @@ services:
       - key: LOW_MEMORY_MODE
         value: "true"
       - key: CORS_ORIGINS
-        value: "https://devpulse-app.vercel.app,http://localhost:5173,http://localhost:3000"
+        value: "https://devpulse-app-snowy.vercel.app,http://localhost:5173,http://localhost:3000"
       - key: DATABASE_URL
         sync: false
       - key: FRONTEND_URL
-        value: "https://devpulse-app.vercel.app"
+        value: "https://devpulse-app-snowy.vercel.app"
       - key: GITHUB_CLIENT_ID
         value: "Ov23liIkuAXGqJSzt37P"
       - key: GITHUB_CLIENT_SECRET
         sync: false
       - key: GITHUB_REDIRECT_URI
-        value: "https://devpulse-app.vercel.app/login"
+        value: "https://devpulse-app-snowy.vercel.app/login"
