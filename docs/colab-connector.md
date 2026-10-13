@@ -39,6 +39,17 @@ def log_session():
 atexit.register(log_session)  # or call log_session() manually when you finish
 ```
 
+## Limitations and token hygiene
+
+- `atexit` runs only when the Python kernel exits cleanly. Colab runtimes that are
+  stopped, recycled, or time out may never fire it, so durations are best-effort,
+  not reliable telemetry. For an exact record, call `log_session()` manually in
+  the last cell.
+- Never paste your token directly into a notebook cell: notebooks get shared and
+  saved to Drive. The snippet uses `getpass`, which hides what you type. Colab's
+  built-in Secrets panel (key icon in the left sidebar) works too - read it with
+  `from google.colab import userdata; TOKEN = userdata.get('DEVPULSE_TOKEN')`.
+
 ## What it sends
 
 Only session metadata: a fixed project label, the language, the editor name, and
