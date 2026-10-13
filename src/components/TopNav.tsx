@@ -416,7 +416,7 @@ export function TopNav({
       {isMobileMenuOpen && (
         <div className="absolute left-0 right-0 top-full bg-white border-b border-slate-200/90 shadow-lg z-40 md:hidden p-2">
           {[
-            { id: 'dashboard', label: 'Real-Time Dashboard', icon: Activity },
+            { id: 'dashboard', label: 'Demo: Live Simulator', icon: Activity },
             { id: 'overview', label: 'Team Overview', icon: LayoutDashboard },
             { id: 'ai-tools', label: 'AI Tools', icon: Wrench },
             { id: 'ai-impact', label: 'AI Impact', icon: Sparkles },
@@ -443,4 +443,4 @@ export function TopNav({
       )}
     </header>
   );
-        }
+}
