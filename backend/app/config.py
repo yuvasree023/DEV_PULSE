@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     # Google Gemini API
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.0-flash"
-    USE_PRECOMPUTED: bool = False
+    USE_PRECOMPUTED: bool = True
     PERSISTENT_DISK: bool = False
     LOW_MEMORY_MODE: bool = True
 
