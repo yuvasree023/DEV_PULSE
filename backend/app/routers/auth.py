@@ -29,7 +29,7 @@ router = APIRouter(prefix="/auth", tags=["GitHub Authentication & User Sessions"
 
 
 class PATLoginRequest(BaseModel):
-    token: str = Field(..., description="GitHub Personal Access Token (read:user for public data; add public_repo only for private repos)")
+    token: str = Field(..., description="GitHub Personal Access Token. Public repos need no scopes; for private repos use a fine-grained token with read-only access to selected repositories.")
 
 
 class OAuthCallbackRequest(BaseModel):
