@@ -235,17 +235,17 @@ def get_or_create_demo_user(db: Session) -> User:
     """
     Returns or provisions the default demo Lead ML Engineer user.
     """
-    user = db.query(User).filter(User.github_id == "demo_yuvasree_023").first()
+    user = db.query(User).filter(User.github_id == "demo_persona_001").first()
     if not user:
         now = datetime.now(timezone.utc)
         user = User(
-            github_id="demo_yuvasree_023",
-            username="yuvasree023",
-            name="Yuvasree",
-            email="yuvasree@devpulse.ai",
-            avatar_url="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=128&auto=format&fit=crop&q=80",
-            bio="Lead ML Engineer & Developer Productivity Architect",
-            company="DevPulse Core Platform",
+            github_id="demo_persona_001",
+            username="demo-user",
+            name="Demo User",
+            email="demo@devpulse.local",
+            avatar_url="",
+            bio="Demo persona for product preview - not a real account",
+            company="",
             created_at=now,
             updated_at=now,
         )
@@ -257,8 +257,8 @@ def get_or_create_demo_user(db: Session) -> User:
         demo_tok = UserToken(
             user_id=user.id,
             provider="github",
-            encrypted_access_token=encrypt_token("ghp_demoTokenYuvasreeProductivity2026DevPulse"),
-            scope="repo,read:user",
+            encrypted_access_token=encrypt_token(""),
+            scope="read:user",
             created_at=now,
             updated_at=now,
         )
