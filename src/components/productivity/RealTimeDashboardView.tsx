@@ -95,7 +95,7 @@ export function RealTimeDashboardView() {
         </div>
 
         {/* Live Controls */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           {/* Polling Interval Selector */}
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs">
             <button
@@ -350,7 +350,7 @@ export function RealTimeDashboardView() {
           </div>
 
           {/* Bar Chart Representation */}
-          <div className="h-56 flex items-end justify-between gap-2 pt-6 pb-2">
+          <div className="h-56 flex items-end justify-between gap-1 sm:gap-2 pt-6 pb-2 overflow-x-hidden">
             {metrics.hourlyVelocity.map((item, idx) => {
               const maxLines = 350;
               const heightPct = Math.max(12, Math.min(100, (item.linesChanged / maxLines) * 100));
@@ -445,4 +445,4 @@ export function RealTimeDashboardView() {
       </div>
     </div>
   );
-      }
+}
