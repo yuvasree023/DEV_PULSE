@@ -394,7 +394,7 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
                   )}
                   <div className="text-[11px] text-slate-400 flex items-center gap-1">
                     <span>Quick Tip: Required scopes:</span>
-                    <span className="font-mono text-purple-600 font-semibold">repo, read:user</span>
+                    <span className="font-mono text-purple-600 font-semibold">read:user, user:email</span>
                   </div>
                 </div>
               </div>
@@ -570,7 +570,7 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
 
           <div className="flex items-center justify-center gap-2 text-[11px] text-slate-400 text-center">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Tokens are symmetrically encrypted with AES-256 before backend storage on Render.</span>
+            <span>GitHub sign-in uses read-only public-data scopes (read:user, user:email). A personal access token is only needed for private repositories and is stored in the project database on Render.</span>
           </div>
         </div>
       </div>
@@ -580,4 +580,4 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
       </footer>
     </div>
   );
-}
+        }
