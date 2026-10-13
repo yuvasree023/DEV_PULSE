@@ -15,6 +15,9 @@ import {
   LogOut,
   TrendingUp,
   Compass,
+  Menu,
+  X,
+  Clock,
 } from 'lucide-react';
 import { authAndIntegrationsService } from '../services/authAndIntegrations';
 
@@ -35,6 +38,7 @@ export function TopNav({
 }: TopNavProps) {
   const [isAiMenuOpen, setIsAiMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [user, setUser] = useState(authAndIntegrationsService.getUser());
   const [trackedRepos, setTrackedRepos] = useState<any[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState<string>('all');
@@ -133,9 +137,17 @@ export function TopNav({
   return (
     <header
       id="top-navigation-bar"
-      className="bg-white border-b border-slate-200/90 sticky top-0 z-30 px-6 py-2.5 flex items-center justify-between shadow-2xs"
+      className="bg-white border-b border-slate-200/90 sticky top-0 z-30 px-4 md:px-6 py-2.5 flex items-center justify-between shadow-2xs"
     >
-      <div className="flex items-center gap-6 lg:gap-8">
+      <div className="flex items-center gap-3 lg:gap-8">
+        {/* Mobile menu (sidebar is hidden below md) */}
+        <button
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="md:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100 cursor-pointer"
+          aria-label="Open navigation menu"
+        >
+          {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
         {/* Brand Logo */}
         <div
           className="flex items-center gap-2.5 cursor-pointer"
@@ -401,6 +413,34 @@ export function TopNav({
           )}
         </div>
       </div>
+      {isMobileMenuOpen && (
+        <div className="absolute left-0 right-0 top-full bg-white border-b border-slate-200/90 shadow-lg z-40 md:hidden p-2">
+          {[
+            { id: 'dashboard', label: 'Real-Time Dashboard', icon: Activity },
+            { id: 'overview', label: 'Team Overview', icon: LayoutDashboard },
+            { id: 'ai-tools', label: 'AI Tools', icon: Wrench },
+            { id: 'ai-impact', label: 'AI Impact', icon: Sparkles },
+            { id: 'ml-insights', label: 'ML Insights', icon: BrainCircuit },
+            { id: 'repositories', label: 'Repositories', icon: FolderGit2 },
+            { id: 'activity', label: 'My Activity', icon: Clock },
+            { id: 'privacy', label: 'Privacy', icon: ShieldAlert },
+          ].map((item) => (
+            <button
+              key={item.id}
+              onClick={() => {
+                onSelectNav(item.id);
+                setIsMobileMenuOpen(false);
+              }}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-semibold cursor-pointer ${
+                activeNav === item.id ? 'bg-purple-50 text-purple-700' : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <item.icon className="w-4 h-4" />
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </header>
   );
 }
