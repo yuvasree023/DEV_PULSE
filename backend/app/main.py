@@ -18,7 +18,7 @@ from fastapi.responses import JSONResponse
 
 try:
     from app.config import settings
-    from app.database import engine, Base, check_db_connection
+    from app.database import engine, Base, check_db_connection, DB_BACKEND, DB_ON_FALLBACK
     from app.services.precomputed import PRECOMPUTED_PATH
     from app.routers import (
         analytics_router,
@@ -34,7 +34,7 @@ try:
     from app.routers.activity import router as activity_router
 except ImportError:
     from backend.app.config import settings
-    from backend.app.database import engine, Base, check_db_connection
+    from backend.app.database import engine, Base, check_db_connection, DB_BACKEND, DB_ON_FALLBACK
     from backend.app.services.precomputed import PRECOMPUTED_PATH
     from backend.app.routers import (
         analytics_router,
@@ -129,6 +129,8 @@ def health_check():
         "status": "ok",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "db_connected": is_connected,
+        "persistence_backend": DB_BACKEND,
+        "db_ready": is_connected and not DB_ON_FALLBACK,
         "environment": settings.ENVIRONMENT,
         "dataset_loaded": (
             PRECOMPUTED_PATH.exists()
