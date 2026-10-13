@@ -17,6 +17,11 @@ db_url = settings.DATABASE_URL.strip() if settings.DATABASE_URL else ""
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
 
+if db_url.startswith("postgresql://"):
+    # SQLAlchemy 2.1 resolves the bare postgresql:// dialect to psycopg (v3),
+    # which is not installed; force psycopg2 (psycopg2-binary is in requirements).
+    db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+
 is_postgres = db_url.startswith("postgresql")
 is_local_postgres = "localhost:5432" in db_url or "127.0.0.1:5432" in db_url
 is_production = settings.ENVIRONMENT.lower() == "production" or bool(os.getenv("RENDER")) or bool(os.getenv("RAILWAY_ENVIRONMENT"))
