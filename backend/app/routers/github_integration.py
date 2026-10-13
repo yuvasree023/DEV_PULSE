@@ -44,54 +44,6 @@ async def list_github_repositories(
             detail="GitHub token not found. Please connect your GitHub account via OAuth or PAT in Onboarding/Settings.",
         )
 
-    # If demo token, return sample verified repositories
-    if token.startswith("ghp_demo") or "Yuvasree" in token:
-        sample_repos = [
-            {
-                "id": 984120341,
-                "name": "DEV_PULSE",
-                "full_name": f"{user.username}/DEV_PULSE",
-                "html_url": f"https://github.com/{user.username}/DEV_PULSE",
-                "description": "AI-Tool Productivity Analytics & Flow Measurement Engine",
-                "language": "TypeScript",
-                "stargazers_count": 28,
-                "forks_count": 6,
-                "private": False,
-                "default_branch": "main",
-            },
-            {
-                "id": 894120892,
-                "name": "ml-productivity-engine",
-                "full_name": f"{user.username}/ml-productivity-engine",
-                "html_url": f"https://github.com/{user.username}/ml-productivity-engine",
-                "description": "Custom time-series ML models for developer fatigue and flow states",
-                "language": "Python",
-                "stargazers_count": 42,
-                "forks_count": 12,
-                "private": False,
-                "default_branch": "main",
-            },
-            {
-                "id": 712039128,
-                "name": "cloud-telemetry-agent",
-                "full_name": f"{user.username}/cloud-telemetry-agent",
-                "html_url": f"https://github.com/{user.username}/cloud-telemetry-agent",
-                "description": "Lightweight telemetry hooks for VS Code and GitHub Actions",
-                "language": "Go",
-                "stargazers_count": 15,
-                "forks_count": 3,
-                "private": False,
-                "default_branch": "main",
-            },
-        ]
-        user_tracked = {
-            ur.repo_id: ur.is_selected
-            for ur in db.query(UserRepository).filter(UserRepository.user_id == user.id).all()
-        }
-        for r in sample_repos:
-            r["is_selected"] = user_tracked.get(r["id"], True)
-        return {"repositories": sample_repos, "total": len(sample_repos)}
-
     # Fetch live from GitHub API
     try:
         raw_repos = await get_github_user_repos(token)
