@@ -121,3 +121,11 @@ def activity_summary(db: Session = Depends(get_db), user: User = Depends(get_cur
         "by_language": [{"language": lang or "unknown", "seconds": int(sec)} for lang, sec in by_language],
         "by_project": [{"project": proj, "seconds": int(sec)} for proj, sec in by_project],
     }
+
+
+@router.delete("/sessions", summary="Delete all of your own recorded coding sessions")
+def delete_sessions(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    deleted = db.query(CodingSession).filter(CodingSession.user_id == user.id).delete(synchronize_session=False)
+    db.commit()
+    logger.info("Deleted %s coding sessions for user %s", deleted, user.id)
+    return {"deleted": deleted}
