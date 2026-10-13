@@ -167,7 +167,7 @@ export function TopNav({
         </div>
 
         {/* Dedicated ML/AI Productivity Suite Navigation Dropdown */}
-        <div className="relative" ref={menuRef}>
+        <div className="relative hidden md:block" ref={menuRef}>
           <button
             onClick={() => setIsAiMenuOpen(!isAiMenuOpen)}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
@@ -302,7 +302,7 @@ export function TopNav({
         <button
           onClick={() => onSelectNav('onboarding')}
           title="Onboarding Setup & Developer Tool Connectors"
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+          className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
             activeNav === 'onboarding'
               ? 'bg-purple-50 text-purple-700 border border-purple-200'
               : 'text-slate-700 hover:text-slate-900 hover:bg-slate-50 border border-slate-200'
@@ -316,7 +316,7 @@ export function TopNav({
         <button
           onClick={() => onSelectNav('integrations')}
           title="Developer Tool Integrations & Credentials"
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+          className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
             activeNav === 'integrations'
               ? 'bg-purple-50 text-purple-700 border border-purple-200'
               : 'text-slate-700 hover:text-slate-900 hover:bg-slate-50 border border-slate-200'
@@ -332,7 +332,7 @@ export function TopNav({
           <button
             id="btn-dataset-modal-header"
             onClick={onOpenDatasetModal}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
+            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
           >
             <Database className="w-3.5 h-3.5 text-slate-500" />
             <span>Dataset</span>
@@ -424,6 +424,12 @@ export function TopNav({
             { id: 'repositories', label: 'Repositories', icon: FolderGit2 },
             { id: 'activity', label: 'My Activity', icon: Clock },
             { id: 'privacy', label: 'Privacy', icon: ShieldAlert },
+            { id: 'ai-suite-burnout', label: 'Burnout & Flow (Sample demo)', icon: BrainCircuit },
+            { id: 'ai-suite-quality', label: 'Code Quality (Sample demo)', icon: BrainCircuit },
+            { id: 'ai-suite-commit', label: 'Commit & Docs (Sample demo)', icon: BrainCircuit },
+            { id: 'ai-suite-pr-velocity', label: 'PR Velocity (Sample demo)', icon: BrainCircuit },
+            { id: 'onboarding', label: 'Onboarding Setup', icon: Compass },
+            { id: 'integrations', label: 'Integrations / Keys', icon: Key },
           ].map((item) => (
             <button
               key={item.id}
