@@ -112,6 +112,9 @@ export function RepositoriesView({ }: RepositoriesViewProps) {
 
   return (
     <div id="repositories-view" className="space-y-6">
+      <div className="rounded-xl border border-sky-300 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+        <span className="font-semibold">Sample repository telemetry.</span> The table below is a bundled public dataset of 140 open-source projects, shown for illustration. Your own GitHub repositories appear in the Tracked Repositories card after you sync, under your GitHub sign-in.
+      </div>
       {/* Tracked Repositories Card */}
       {trackedRepos.length > 0 && (
         <div className="bg-gradient-to-r from-purple-900 to-indigo-950 text-white rounded-3xl p-6 shadow-xl space-y-4">
@@ -317,4 +320,4 @@ export function RepositoriesView({ }: RepositoriesViewProps) {
       </div>
     </div>
   );
-}
+        }
