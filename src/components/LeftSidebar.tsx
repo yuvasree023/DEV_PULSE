@@ -31,7 +31,7 @@ export function LeftSidebar({
   totalPrs,
 }: LeftSidebarProps) {
   const mainNavItems = [
-    { id: 'dashboard', label: 'Real-Time Dashboard', icon: Activity, isLive: true },
+    { id: 'dashboard', label: 'Demo: Live Simulator', icon: Activity },
     { id: 'overview', label: 'Team Overview', icon: LayoutDashboard },
     { id: 'ai-tools', label: 'AI Tools', icon: Wrench },
     { id: 'ai-impact', label: 'AI Impact', icon: Sparkles },
@@ -46,25 +46,25 @@ export function LeftSidebar({
       id: 'ai-suite-burnout',
       label: 'Burnout & Flow Predictor',
       icon: ShieldAlert,
-      tag: 'ML-Powered',
+      tag: 'Sample demo',
     },
     {
       id: 'ai-suite-quality',
       label: 'Code Quality & Refactor',
       icon: Cpu,
-      tag: 'ML-Powered',
+      tag: 'Sample demo',
     },
     {
       id: 'ai-suite-commit',
       label: 'Commit & Docs Generator',
       icon: FileText,
-      tag: 'ML-Powered',
+      tag: 'Sample demo',
     },
     {
       id: 'ai-suite-pr-velocity',
       label: 'PR Velocity & Merge Likelihood',
       icon: TrendingUp,
-      tag: 'ML-Powered',
+      tag: 'Sample demo',
     },
   ];
 
@@ -100,12 +100,7 @@ export function LeftSidebar({
                     <Icon className={`w-4 h-4 ${isActive ? 'text-purple-600' : 'text-slate-400'}`} />
                     <span>{item.label}</span>
                   </div>
-                  {item.isLive && (
-                    <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded-full border border-emerald-200">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Live
-                    </span>
-                  )}
+
                 </button>
               );
             })}
@@ -117,7 +112,7 @@ export function LeftSidebar({
           <div className="px-2 flex items-center justify-between">
             <span className="text-[10px] font-black text-purple-900 uppercase tracking-wider flex items-center gap-1">
               <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-              AI Productivity Suite (ML-Powered)
+              AI Productivity Suite (Sample ML Demo)
             </span>
           </div>
 
