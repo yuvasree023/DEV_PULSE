@@ -262,7 +262,7 @@ export function TopNav({
             }`}
           >
             <Activity className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Real-Time Engine</span>
+            <span>Demo Simulator</span>
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           </button>
         </nav>
@@ -443,4 +443,4 @@ export function TopNav({
       )}
     </header>
   );
-}
+        }
