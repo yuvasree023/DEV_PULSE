@@ -137,6 +137,8 @@ export const api = {
   getActivitySummary: (): Promise<ActivitySummary> => fetchJson<ActivitySummary>('/api/activity/summary'),
   getActivitySessions: (limit = 20): Promise<ActivitySessionRow[]> =>
     fetchJson<ActivitySessionRow[]>(`/api/activity/sessions?limit=${limit}`),
+  deleteActivitySessions: (): Promise<{ deleted: number }> =>
+    fetchJson<{ deleted: number }>('/api/activity/sessions', { method: 'DELETE' }),
 
   checkHealth: (): Promise<{ status: string }> => fetchJson<{ status: string }>('/health'),
 
@@ -411,4 +413,3 @@ export const api = {
       fetchJson<any>('/api/github/sync-status'),
   }
 };
-
