@@ -39,75 +39,25 @@ export const DEFAULT_USER: UserProfile = {
 // Default integration credentials (pre-connected for evaluation)
 export const DEFAULT_INTEGRATIONS: IntegrationsState = {
   github: {
-    token: 'ghp_demoTokenYuvasreeProductivity2026DevPulse',
-    username: 'yuvasree023',
-    connected: true,
-    lastSynced: new Date(Date.now() - 4 * 60 * 1000).toISOString(),
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=128&auto=format&fit=crop&q=80',
-    rateLimitRemaining: 4920,
-    reposCount: 18,
-    syncFrequency: 'realtime',
-    scopes: ['repo', 'read:user', 'workflow'],
+    token: '',
+    username: '',
+    connected: false,
+    syncFrequency: 'manual',
+    scopes: ['read:user', 'user:email'],
   },
   vscode: {
-    apiKey: 'vsc_live_sync_8892f3a41b2c',
-    webhookUrl: 'https://api.devpulse.io/telemetry/vscode/hook?token=vsc_live_sync_8892f3a41b2c',
-    connected: true,
-    lastHeartbeat: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-    activeWorkspace: 'DEV_PULSE (TypeScript / Python)',
-    todayActiveMinutes: 248,
-    extensionVersion: 'v2.4.1 (DevPulse Companion)',
-    settingsSyncActive: true,
+    apiKey: '',
+    connected: false,
+    settingsSyncActive: false,
   },
   antigravity: {
-    apiKey: 'agy_live_core_398a10bcfe74',
-    webhookSecret: 'sec_agy_wh_49102830491',
-    connected: true,
-    lastPing: new Date(Date.now() - 1 * 60 * 1000).toISOString(),
-    agentMode: 'autonomous',
-    activePipelinesCount: 4,
+    apiKey: '',
+    connected: false,
+    agentMode: 'pair-programmer',
   },
-  lastTested: new Date().toISOString(),
 };
 
-export const INITIAL_TELEMETRY_EVENTS: TelemetryEvent[] = [
-  {
-    id: 'evt_1',
-    timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-    source: 'github',
-    type: 'PULL_REQUEST_OPEN',
-    title: 'PR #107: Add multi-agent productivity pipeline',
-    details: 'Repo yuvasree023/DEV_PULSE • Branch feat/ai-suite • 4 files changed (+320, -12)',
-    impactScore: 88,
-  },
-  {
-    id: 'evt_2',
-    timestamp: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
-    source: 'vscode',
-    type: 'DEEP_WORK_BURST',
-    title: 'Active Coding Session (45 min flow block)',
-    details: 'Editor active in src/components/ai-suite • 840 keystrokes • Zero context switches',
-    impactScore: 94,
-  },
-  {
-    id: 'evt_3',
-    timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-    source: 'antigravity',
-    type: 'AGENT_TASK_RESOLVED',
-    title: 'Automated PR Reviewer Agent Completed',
-    details: 'Evaluated PR #104 in 1.4s • Approved with 2 suggestions • Zero security flaws',
-    impactScore: 91,
-  },
-  {
-    id: 'evt_4',
-    timestamp: new Date(Date.now() - 26 * 60 * 1000).toISOString(),
-    source: 'github',
-    type: 'COMMIT_PUSH',
-    title: 'commit: feat(ml): implement real-time flow state scorer',
-    details: 'SHA 7a2b9f1 • Author: yuvasree023 • Fast-forward merge verified',
-    impactScore: 85,
-  },
-];
+export const INITIAL_TELEMETRY_EVENTS: TelemetryEvent[] = [];
 
 class AuthAndIntegrationsService {
   private user: UserProfile;
@@ -348,39 +298,6 @@ class AuthAndIntegrationsService {
   public async testGitHubConnection(token: string): Promise<{ success: boolean; data?: any; error?: string }> {
     if (!token || token.trim().length === 0) {
       return { success: false, error: 'GitHub Personal Access Token is required.' };
-    }
-
-    // If it's the demo token, return verified mock payload immediately
-    if (token.startsWith('ghp_demo') || token.includes('Yuvasree')) {
-      this.integrations.github = {
-        ...this.integrations.github,
-        token,
-        connected: true,
-        username: 'yuvasree023',
-        avatarUrl: DEFAULT_USER.avatar,
-        rateLimitRemaining: 4980,
-        reposCount: 24,
-        lastSynced: new Date().toISOString(),
-      };
-      this.saveIntegrations();
-      this.addEvent({
-        id: `evt_${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        source: 'github',
-        type: 'TOKEN_VERIFIED',
-        title: 'GitHub Token Authenticated Successfully',
-        details: 'User @yuvasree023 verified with scopes [repo, read:user, workflow]',
-        impactScore: 92,
-      });
-      return {
-        success: true,
-        data: {
-          login: 'yuvasree023',
-          name: 'Yuvasree',
-          public_repos: 24,
-          rate_limit: 4980,
-        },
-      };
     }
 
     // Real live GitHub API call if user entered actual PAT
