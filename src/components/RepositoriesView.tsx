@@ -125,6 +125,8 @@ export function RepositoriesView({ }: RepositoriesViewProps) {
               </div>
               <p className="text-xs text-purple-200/80 mt-0.5">
                 Real pull request and commit telemetry synchronizing directly into PostgreSQL.
+                GitHub sign-in covers your public repositories only (read-only); connect a fine-grained
+                read-only token if you also want private repositories you choose.
               </p>
             </div>
             <button
