@@ -118,7 +118,26 @@ async function checkServerHealthWithRetry(
   return false;
 }
 
+export interface ActivitySummary {
+  total_seconds: number;
+  by_language: { language: string; seconds: number }[];
+  by_project: { project: string; seconds: number }[];
+}
+
+export interface ActivitySessionRow {
+  project: string;
+  language: string | null;
+  editor: string;
+  started_at: string | null;
+  ended_at: string | null;
+  duration_seconds: number;
+}
+
 export const api = {
+  getActivitySummary: (): Promise<ActivitySummary> => fetchJson<ActivitySummary>('/api/activity/summary'),
+  getActivitySessions: (limit = 20): Promise<ActivitySessionRow[]> =>
+    fetchJson<ActivitySessionRow[]>(`/api/activity/sessions?limit=${limit}`),
+
   checkHealth: (): Promise<{ status: string }> => fetchJson<{ status: string }>('/health'),
 
   checkServerHealthWithRetry,
@@ -392,5 +411,4 @@ export const api = {
       fetchJson<any>('/api/github/sync-status'),
   }
 };
-
 
