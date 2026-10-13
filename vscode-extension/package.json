@@ -22,8 +22,8 @@
       "properties": {
         "devpulse.backendUrl": {
           "type": "string",
-          "default": "",
-          "description": "Base URL of your DevPulse backend (no trailing slash). Set this to the URL of your deployed DevPulse backend."
+          "default": "https://devpulse-backend.onrender.com",
+          "description": "Base URL of your DevPulse backend (no trailing slash). Defaults to the project deployment; change it if you self-host."
         }
       }
     },
