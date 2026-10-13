@@ -1,207 +1,87 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { authAndIntegrationsService } from '../../services/authAndIntegrations';
 import {
-  UserProfile,
-  IntegrationsState,
-  TelemetryEvent,
-} from '../../types';
-import {
-  Key,
-  Lock,
-  ShieldCheck,
   Github,
   Code2,
   Cpu,
-  Sparkles,
+  Notebook,
+  ShieldCheck,
   CheckCircle2,
   AlertTriangle,
   RefreshCw,
   Eye,
   EyeOff,
-  Copy,
-  Check,
-  LogOut,
-  LogIn,
-  Sliders,
-  History,
-  Trash2,
   ExternalLink,
-  ShieldAlert,
+  Lock,
 } from 'lucide-react';
 
 export function IntegrationsView() {
-  const [user, setUser] = useState<UserProfile>(authAndIntegrationsService.getUser());
-  const [integrations, setIntegrations] = useState<IntegrationsState>(authAndIntegrationsService.getIntegrations());
-  const [events, setEvents] = useState<TelemetryEvent[]>(authAndIntegrationsService.getEvents());
-
-  // Input states
+  const [integrations, setIntegrations] = useState(authAndIntegrationsService.getIntegrations());
   const [githubToken, setGithubToken] = useState(integrations.github.token);
-  const [githubSyncFreq, setGithubSyncFreq] = useState(integrations.github.syncFrequency);
-  const [vscodeKey, setVscodeKey] = useState(integrations.vscode.apiKey);
-  const [vscodeSyncActive, setVscodeSyncActive] = useState(integrations.vscode.settingsSyncActive);
-  const [antigravityKey, setAntigravityKey] = useState(integrations.antigravity.apiKey);
-  const [antigravityMode, setAntigravityMode] = useState(integrations.antigravity.agentMode);
-
-  // Masking toggles
   const [showGithub, setShowGithub] = useState(false);
-  const [showVscode, setShowVscode] = useState(false);
-  const [showAntigravity, setShowAntigravity] = useState(false);
-
-  // Action status indicators
   const [testingGithub, setTestingGithub] = useState(false);
-  const [testingVscode, setTestingVscode] = useState(false);
-  const [testingAntigravity, setTestingAntigravity] = useState(false);
   const [githubFeedback, setGithubFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
-  const [copiedHook, setCopiedHook] = useState(false);
-
-  // Login modal / edit user state
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginName, setLoginName] = useState('');
-
-  useEffect(() => {
-    const unsubscribe = authAndIntegrationsService.subscribe(() => {
-      setUser(authAndIntegrationsService.getUser());
-      const updated = authAndIntegrationsService.getIntegrations();
-      setIntegrations(updated);
-      setEvents(authAndIntegrationsService.getEvents());
-      setGithubToken(updated.github.token);
-      setVscodeKey(updated.vscode.apiKey);
-      setAntigravityKey(updated.antigravity.apiKey);
-    });
-    return unsubscribe;
-  }, []);
 
   const handleTestGitHub = async () => {
-    setTestingGithub(true);
+    const token = githubToken.trim();
     setGithubFeedback(null);
-    authAndIntegrationsService.updateGitHub(githubToken, githubSyncFreq);
-    const res = await authAndIntegrationsService.testGitHubConnection(githubToken);
-    setTestingGithub(false);
-    if (res.success) {
-      setGithubFeedback({
-        type: 'success',
-        msg: `Verified @${res.data?.login || 'yuvasree023'} with ${res.data?.rate_limit || 4980} API requests remaining.`,
-      });
-    } else {
-      setGithubFeedback({ type: 'error', msg: res.error || 'Connection failed' });
+    if (!token) {
+      setGithubFeedback({ type: 'error', msg: 'Paste a token first, or skip this - sign-in already covers public data.' });
+      return;
     }
+    setTestingGithub(true);
+    try {
+      const res = await fetch('https://api.github.com/user', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github.v3+json',
+        },
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        setGithubFeedback({ type: 'error', msg: `GitHub API error (${res.status}): ${err.message || 'invalid token'}` });
+      } else {
+        const data = await res.json();
+        const remaining = res.headers.get('x-ratelimit-remaining');
+        authAndIntegrationsService.updateGitHub(token, 'manual');
+        setIntegrations(authAndIntegrationsService.getIntegrations());
+        setGithubFeedback({
+          type: 'success',
+          msg: `Verified @${data.login}${remaining ? ` - ${remaining} API requests remaining this hour` : ''}.`,
+        });
+      }
+    } catch {
+      setGithubFeedback({ type: 'error', msg: 'Network error reaching api.github.com.' });
+    }
+    setTestingGithub(false);
   };
 
-  const handleTestVSCode = () => {
-    setTestingVscode(true);
-    authAndIntegrationsService.updateVSCode(vscodeKey, vscodeSyncActive);
-    setTimeout(() => {
-      authAndIntegrationsService.testVSCodeHeartbeat();
-      setTestingVscode(false);
-    }, 600);
-  };
-
-  const handleTestAntigravity = () => {
-    setTestingAntigravity(true);
-    authAndIntegrationsService.updateAntigravity(antigravityKey, antigravityMode);
-    setTimeout(() => {
-      authAndIntegrationsService.pingAntigravity();
-      setTestingAntigravity(false);
-    }, 600);
-  };
-
-  const handleCopyWebhook = () => {
-    if (!integrations.vscode.webhookUrl) return;
-    navigator.clipboard.writeText(integrations.vscode.webhookUrl);
-    setCopiedHook(true);
-    setTimeout(() => setCopiedHook(false), 2000);
-  };
-
-  const handleLoginSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!loginEmail.trim()) return;
-    authAndIntegrationsService.login(loginName || 'Developer', loginEmail, 'email');
-    setIsLoginModalOpen(false);
+  const handleDisconnectGitHub = () => {
+    authAndIntegrationsService.disconnectIntegration('github');
+    setIntegrations(authAndIntegrationsService.getIntegrations());
+    setGithubToken('');
+    setGithubFeedback(null);
   };
 
   return (
     <div className="space-y-8">
-      {/* Header Banner */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 p-6 md:p-8 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 text-xs font-semibold">
-            <Lock className="w-3 h-3" />
-            <span>Developer Tool Credentials & Telemetry Vault</span>
-          </div>
-          <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
-            Integrations & Access Portal
-          </h1>
-          <p className="text-xs md:text-sm text-slate-500 max-w-2xl">
-            Securely configure developer credentials for GitHub activity streams, VS Code extension telemetry, and Google Antigravity multi-agent workspace connectors.
-          </p>
+      {/* Header */}
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-6 md:p-8 shadow-xs space-y-2">
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 text-xs font-semibold">
+          <Lock className="w-3 h-3" />
+          <span>Connections</span>
         </div>
-
-        {/* User Authentication Pill Card */}
-        <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl shrink-0 flex items-center justify-between gap-4 min-w-[280px]">
-          <div className="flex items-center gap-3">
-            <img
-              src={user.avatar}
-              alt={user.name}
-              className="w-10 h-10 rounded-full border border-purple-300 object-cover"
-            />
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-slate-900">{user.name}</span>
-                {user.isAuthenticated && (
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" title="Authenticated" />
-                )}
-              </div>
-              <span className="text-[11px] text-slate-500 block">{user.email}</span>
-              <span className="text-[10px] font-mono text-purple-600 font-semibold">{user.role}</span>
-            </div>
-          </div>
-
-          <div>
-            {user.isAuthenticated ? (
-              <button
-                onClick={() => authAndIntegrationsService.logout()}
-                title="Sign Out"
-                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-white rounded-lg transition-colors cursor-pointer border border-transparent hover:border-slate-200"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            ) : (
-              <button
-                onClick={() => setIsLoginModalOpen(true)}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-600 text-white hover:bg-purple-700 transition-colors cursor-pointer"
-              >
-                Sign In
-              </button>
-            )}
-          </div>
-        </div>
+        <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
+          Connect your tools
+        </h1>
+        <p className="text-xs md:text-sm text-slate-500 max-w-2xl">
+          DevPulse reads your public GitHub activity and, if you install it, coding-session metadata from the
+          companion editor extension. Nothing here posts to GitHub, and private repositories are never touched.
+        </p>
       </div>
 
-      {/* Security Architecture Notice */}
-      <div className="p-4 rounded-xl bg-purple-50/70 border border-purple-200/80 text-purple-950 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center shrink-0">
-            <ShieldCheck className="w-4 h-4" />
-          </div>
-          <div>
-            <h4 className="font-bold">Encrypted Token Storage & Privacy Guarantee</h4>
-            <p className="text-purple-700 text-[11px] mt-0.5">
-              Personal Access Tokens are encrypted client-side using WebCrypto AES-GCM and masked in all telemetry logs. Tokens can also be supplied via backend environment variables (<code className="bg-white/60 px-1 rounded">GITHUB_TOKEN</code>).
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={() => authAndIntegrationsService.resetToDefaults()}
-          className="text-[11px] text-purple-700 font-semibold underline underline-offset-2 shrink-0 cursor-pointer hover:text-purple-950"
-        >
-          Reset to Demo Baseline
-        </button>
-      </div>
-
-      {/* Integration Credentials Form Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* 1. GitHub Integration Card */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* GitHub card */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-4 flex flex-col justify-between">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -210,8 +90,8 @@ export function IntegrationsView() {
                   <Github className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">GitHub Connector</h3>
-                  <span className="text-[11px] text-slate-400">PRs, Commits, & Cycle Times</span>
+                  <h3 className="text-sm font-bold text-slate-900">GitHub</h3>
+                  <span className="text-[11px] text-slate-400">Public profile, repos & commit activity</span>
                 </div>
               </div>
               <span
@@ -221,21 +101,26 @@ export function IntegrationsView() {
                     : 'bg-slate-100 text-slate-500'
                 }`}
               >
-                {integrations.github.connected ? 'Connected' : 'Disconnected'}
+                {integrations.github.connected ? 'Connected' : 'Via sign-in'}
               </span>
             </div>
 
+            <p className="text-xs text-slate-500">
+              Signing in with GitHub already gives DevPulse read-only access to your public data
+              (scopes <code className="bg-slate-100 px-1 rounded">read:user</code> and{' '}
+              <code className="bg-slate-100 px-1 rounded">user:email</code>). A personal access token is optional
+              and only raises API rate headroom. If you add one, use a fine-grained token with read-only access
+              to public repositories.
+            </p>
+
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
-                <span>Personal Access Token (PAT)</span>
-                <span className="text-[10px] text-purple-600 font-mono">repo, read:user</span>
-              </label>
+              <label className="text-xs font-bold text-slate-700 block">Optional: fine-grained access token</label>
               <div className="relative">
                 <input
                   type={showGithub ? 'text' : 'password'}
                   value={githubToken}
                   onChange={(e) => setGithubToken(e.target.value)}
-                  placeholder="ghp_••••••••••••••••••••••••••••••••"
+                  placeholder="github_pat_..."
                   className="w-full text-xs font-mono px-3 py-2 pr-9 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
                 <button
@@ -246,20 +131,9 @@ export function IntegrationsView() {
                   {showGithub ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-700 block">Polling Frequency</label>
-              <select
-                value={githubSyncFreq}
-                onChange={(e) => setGithubSyncFreq(e.target.value as any)}
-                className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
-              >
-                <option value="realtime">Real-Time Polling (Every 5s)</option>
-                <option value="5min">Normal Cadence (5 min)</option>
-                <option value="15min">Background (15 min)</option>
-                <option value="manual">Manual Trigger Only</option>
-              </select>
+              <p className="text-[11px] text-slate-400">
+                Stored only in this browser's local storage and sent only to api.github.com when you test it.
+              </p>
             </div>
 
             {githubFeedback && (
@@ -282,10 +156,10 @@ export function IntegrationsView() {
 
           <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
             <button
-              onClick={() => authAndIntegrationsService.disconnectIntegration('github')}
+              onClick={handleDisconnectGitHub}
               className="text-xs text-rose-600 hover:text-rose-700 font-semibold cursor-pointer"
             >
-              Disconnect
+              Remove token
             </button>
             <button
               onClick={handleTestGitHub}
@@ -293,12 +167,12 @@ export function IntegrationsView() {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white transition-colors cursor-pointer disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${testingGithub ? 'animate-spin' : ''}`} />
-              <span>{testingGithub ? 'Verifying...' : 'Test Connection'}</span>
+              <span>{testingGithub ? 'Verifying...' : 'Test connection'}</span>
             </button>
           </div>
         </div>
 
-        {/* 2. VS Code Extension Integration Card */}
+        {/* VS Code extension card */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-4 flex flex-col justify-between">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -307,271 +181,105 @@ export function IntegrationsView() {
                   <Code2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">VS Code Extension</h3>
-                  <span className="text-[11px] text-slate-400">Companion Telemetry & Buffer Stream</span>
+                  <h3 className="text-sm font-bold text-slate-900">VS Code extension</h3>
+                  <span className="text-[11px] text-slate-400">Coding-session activity tracker</span>
                 </div>
               </div>
-              <span
-                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                  integrations.vscode.connected
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : 'bg-slate-100 text-slate-500'
-                }`}
-              >
-                {integrations.vscode.connected ? 'Active Hook' : 'Inactive'}
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                Source build
               </span>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-700 block">Telemetry Sync API Key</label>
-              <div className="relative">
-                <input
-                  type={showVscode ? 'text' : 'password'}
-                  value={vscodeKey}
-                  onChange={(e) => setVscodeKey(e.target.value)}
-                  placeholder="vsc_••••••••••••••••••••••••••••••••"
-                  className="w-full text-xs font-mono px-3 py-2 pr-9 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowVscode(!showVscode)}
-                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
-                >
-                  {showVscode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
+            <p className="text-xs text-slate-500">
+              The extension lives in this repository under <code className="bg-slate-100 px-1 rounded">vscode-extension/</code>.
+              It is not on the Marketplace yet, so you build and install it locally.
+            </p>
 
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                <span>Webhook Ingestion URL</span>
-                <button
-                  onClick={handleCopyWebhook}
-                  className="text-[10px] text-purple-600 hover:underline flex items-center gap-1 cursor-pointer font-semibold"
-                >
-                  {copiedHook ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                  <span>{copiedHook ? 'Copied' : 'Copy URL'}</span>
-                </button>
-              </div>
-              <div className="text-[11px] font-mono text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-200 overflow-x-auto whitespace-nowrap">
-                {integrations.vscode.webhookUrl}
-              </div>
-            </div>
+            <ol className="text-xs text-slate-600 space-y-1.5 list-decimal list-inside">
+              <li>In <code className="bg-slate-100 px-1 rounded">vscode-extension/</code>: <code className="bg-slate-100 px-1 rounded">npm install && npm run compile && npx @vscode/vsce package</code></li>
+              <li>Install the generated .vsix: <code className="bg-slate-100 px-1 rounded">code --install-extension devpulse-activity-*.vsix</code></li>
+              <li>Set <code className="bg-slate-100 px-1 rounded">devpulse.backendUrl</code> to your deployed backend URL and paste a session token (PAT) from the dashboard in VS Code settings.</li>
+              <li>Your sessions appear under <span className="font-semibold">My Activity</span> in the sidebar.</li>
+            </ol>
 
-            <div className="flex items-center justify-between text-xs text-slate-600 pt-1">
-              <span>Today's active coding:</span>
-              <span className="font-mono font-bold text-slate-900">
-                {integrations.vscode.todayActiveMinutes} mins ({(integrations.vscode.todayActiveMinutes! / 60).toFixed(1)} hrs)
+            <div className="flex items-start gap-2 p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-[11px] text-slate-500">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+              <span>
+                Collects only the project folder name, programming language, editor name, and active minutes
+                (with idle detection and a pause command). It never reads file contents or full paths.
               </span>
             </div>
-          </div>
-
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
-            <button
-              onClick={() => authAndIntegrationsService.disconnectIntegration('vscode')}
-              className="text-xs text-rose-600 hover:text-rose-700 font-semibold cursor-pointer"
-            >
-              Disconnect
-            </button>
-            <button
-              onClick={handleTestVSCode}
-              disabled={testingVscode}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${testingVscode ? 'animate-spin' : ''}`} />
-              <span>{testingVscode ? 'Pinging...' : 'Send Heartbeat'}</span>
-            </button>
           </div>
         </div>
 
-        {/* 3. Antigravity & External AI Tools Card */}
+        {/* Antigravity card */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-4 flex flex-col justify-between">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-slate-400 text-white flex items-center justify-center">
                   <Cpu className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">Google Antigravity</h3>
-                  <span className="text-[11px] text-slate-400">Autonomous Multi-Agent Workspace</span>
+                  <span className="text-[11px] text-slate-400">Agent-first IDE</span>
                 </div>
               </div>
-              <span
-                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                  integrations.antigravity.connected
-                    ? 'bg-purple-100 text-purple-800'
-                    : 'bg-slate-100 text-slate-500'
-                }`}
-              >
-                {integrations.antigravity.connected ? 'Swarm Ready' : 'Standby'}
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
+                Not connected - untested
               </span>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-700 block">Antigravity API Secret Key</label>
-              <div className="relative">
-                <input
-                  type={showAntigravity ? 'text' : 'password'}
-                  value={antigravityKey}
-                  onChange={(e) => setAntigravityKey(e.target.value)}
-                  placeholder="agy_••••••••••••••••••••••••••••••••"
-                  className="w-full text-xs font-mono px-3 py-2 pr-9 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowAntigravity(!showAntigravity)}
-                  className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
-                >
-                  {showAntigravity ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-700 block">Agent Multi-Agent Mode</label>
-              <select
-                value={antigravityMode}
-                onChange={(e) => setAntigravityMode(e.target.value as any)}
-                className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
-              >
-                <option value="autonomous">Autonomous Multi-Agent (Full Pipeline)</option>
-                <option value="pair-programmer">Pair-Programmer (Interactive Mode)</option>
-                <option value="evaluator">Evaluator (Benchmark & Grounding Only)</option>
-              </select>
-            </div>
-
-            <div className="flex items-center justify-between text-xs text-slate-600 pt-1">
-              <span>Active Agent Pipelines:</span>
-              <span className="font-mono font-bold text-purple-700">
-                {integrations.antigravity.activePipelinesCount} Swarm Pipelines
-              </span>
-            </div>
+            <p className="text-xs text-slate-500">
+              There is no Antigravity integration in DevPulse today. Whether the Antigravity IDE can run the
+              DevPulse VS Code extension is untested, so this connector stays off. If you try the extension
+              inside Antigravity and it works, sessions will show up under My Activity exactly like VS Code.
+            </p>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
-            <button
-              onClick={() => authAndIntegrationsService.disconnectIntegration('antigravity')}
-              className="text-xs text-rose-600 hover:text-rose-700 font-semibold cursor-pointer"
-            >
-              Disconnect
-            </button>
-            <button
-              onClick={handleTestAntigravity}
-              disabled={testingAntigravity}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white transition-colors cursor-pointer disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${testingAntigravity ? 'animate-spin' : ''}`} />
-              <span>{testingAntigravity ? 'Connecting...' : 'Ping Environment'}</span>
-            </button>
+          <div className="pt-4 border-t border-slate-100">
+            <span className="text-[11px] text-slate-400">No credentials are requested or stored for Antigravity.</span>
           </div>
         </div>
-      </div>
 
-      {/* Live Ingestion & Audit Log */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <History className="w-4 h-4 text-purple-600" />
-            <h3 className="text-xs font-bold text-slate-900">Live Ingested Telemetry Stream (Audit Trail)</h3>
-          </div>
-          <span className="text-[11px] font-mono text-slate-400">
-            {events.length} events logged in session
-          </span>
-        </div>
-
-        <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
-          {events.map((evt) => (
-            <div key={evt.id} className="p-4 flex items-center justify-between gap-4 hover:bg-slate-50/70 text-xs">
-              <div className="flex items-center gap-3">
-                <span
-                  className={`w-2 h-2 rounded-full shrink-0 ${
-                    evt.source === 'github'
-                      ? 'bg-slate-900'
-                      : evt.source === 'vscode'
-                      ? 'bg-blue-600'
-                      : 'bg-purple-600'
-                  }`}
-                />
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-800">{evt.title}</span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-500 uppercase">
-                      {evt.source}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-500">{evt.details}</p>
-                </div>
-              </div>
-
-              <span className="text-[10px] font-mono text-slate-400 shrink-0">
-                {new Date(evt.timestamp).toLocaleTimeString()}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Simple Sign In Modal */}
-      {isLoginModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+        {/* Colab card */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-4 flex flex-col justify-between">
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <LogIn className="w-4 h-4 text-purple-600" />
-                Developer Authentication
-              </h3>
-              <button
-                onClick={() => setIsLoginModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 text-sm cursor-pointer"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center">
+                  <Notebook className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Google Colab</h3>
+                  <span className="text-[11px] text-slate-400">Optional notebook logger</span>
+                </div>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                Optional
+              </span>
             </div>
 
-            <form onSubmit={handleLoginSubmit} className="space-y-3">
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Developer Name</label>
-                <input
-                  type="text"
-                  value={loginName}
-                  onChange={(e) => setLoginName(e.target.value)}
-                  placeholder="e.g. Yuvasree"
-                  className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
+            <p className="text-xs text-slate-500">
+              A short Python snippet can log Colab notebook sessions (runtime type and duration) to your
+              dashboard. The snippet and setup steps are in the repository at{' '}
+              <code className="bg-slate-100 px-1 rounded">docs/colab-connector.md</code>.
+            </p>
+          </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Work Email</label>
-                <input
-                  type="email"
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder="name@company.com"
-                  className="w-full text-xs px-3 py-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  required
-                />
-              </div>
-
-              <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsLoginModalOpen(false)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 rounded-lg text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white cursor-pointer"
-                >
-                  Authenticate
-                </button>
-              </div>
-            </form>
+          <div className="pt-4 border-t border-slate-100">
+            <a
+              href="https://github.com/yuvasree023/DEV_PULSE/blob/main/docs/colab-connector.md"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-purple-600 hover:underline font-semibold cursor-pointer"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Open the Colab snippet</span>
+            </a>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
