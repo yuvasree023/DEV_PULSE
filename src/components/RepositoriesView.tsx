@@ -40,6 +40,22 @@ export function RepositoriesView({ }: RepositoriesViewProps) {
     loadData();
   }, []);
 
+  const [trackedRepos, setTrackedRepos] = useState<any[]>([]);
+  const [syncingAll, setSyncingAll] = useState(false);
+
+  const loadTrackedRepos = async () => {
+    try {
+      const data = await api.github.getTrackedRepositories();
+      setTrackedRepos(data.tracked_repositories || []);
+    } catch {
+      // Ignore
+    }
+  };
+
+  useEffect(() => {
+    loadTrackedRepos();
+  }, []);
+
   const projects = projectsData?.projects || (projectsData as any)?.repositories || [];
   const languages = ['all', ...(projectsData?.languages?.map((l) => l.language) || [])];
 
@@ -80,22 +96,6 @@ export function RepositoriesView({ }: RepositoriesViewProps) {
       </div>
     );
   }
-
-  const [trackedRepos, setTrackedRepos] = useState<any[]>([]);
-  const [syncingAll, setSyncingAll] = useState(false);
-
-  const loadTrackedRepos = async () => {
-    try {
-      const data = await api.github.getTrackedRepositories();
-      setTrackedRepos(data.tracked_repositories || []);
-    } catch {
-      // Ignore
-    }
-  };
-
-  useEffect(() => {
-    loadTrackedRepos();
-  }, []);
 
   const handleSyncAll = async () => {
     setSyncingAll(true);
