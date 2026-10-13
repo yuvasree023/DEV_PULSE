@@ -105,6 +105,9 @@ export function PRVelocityLikelihoodView() {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <span className="font-semibold">Simulated demo data.</span> These numbers are generated locally for illustration and are not your real activity. Real telemetry appears under My Activity once the VS Code extension or Colab connector sends sessions.
+      </div>
       {/* Top Banner & Preset Bar */}
       <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
