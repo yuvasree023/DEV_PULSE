@@ -1,0 +1,76 @@
+{
+  "name": "devpulse",
+  "displayName": "DevPulse",
+  "description": "Private coding-activity tracker and stats for your own DevPulse dashboard. Tracks project, language, and focused time locally; sends only session metadata to your own backend.",
+  "version": "0.1.0",
+  "publisher": "yuvasree023",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.86.0"
+  },
+  "categories": [
+    "Other",
+    "Visualization"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "DevPulse",
+      "properties": {
+        "devpulse.backendUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Base URL of your DevPulse backend (no trailing slash). Set this to the URL of your deployed DevPulse backend."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "devpulse.signIn",
+        "title": "DevPulse: Sign in with GitHub Token"
+      },
+      {
+        "command": "devpulse.refresh",
+        "title": "DevPulse: Refresh Stats"
+      },
+      {
+        "command": "devpulse.pause",
+        "title": "DevPulse: Pause/Resume Activity Tracking"
+      },
+      {
+        "command": "devpulse.signOut",
+        "title": "DevPulse: Sign Out"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "devpulse",
+          "title": "DevPulse",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "devpulse": [
+        {
+          "id": "devpulse.stats",
+          "name": "My Stats"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.0",
+    "@types/vscode": "^1.86.0",
+    "typescript": "^5.3.3"
+  }
+}
