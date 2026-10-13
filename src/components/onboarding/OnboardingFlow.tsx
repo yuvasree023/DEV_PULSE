@@ -68,29 +68,28 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
         .map((r: any) => r.id);
       setSelectedRepoIds(preSelected.length > 0 ? preSelected : list.slice(0, 3).map((r: any) => r.id));
     } catch (err: any) {
-      console.warn('Could not fetch GitHub repos from backend, using sample list:', err);
-      const sample = [
-        { id: 984120341, name: 'DEV_PULSE', full_name: 'yuvasree023/DEV_PULSE', description: 'AI Developer Productivity Engine', language: 'TypeScript', is_selected: true },
-        { id: 984120342, name: 'ai-code-refactor', full_name: 'yuvasree023/ai-code-refactor', description: 'AST code health analyzer', language: 'Python', is_selected: true },
-        { id: 984120343, name: 'developer-flow-models', full_name: 'yuvasree023/developer-flow-models', description: 'Cognitive state & burnout predictors', language: 'Python', is_selected: false },
-      ];
-      setRepos(sample);
-      setSelectedRepoIds([984120341, 984120342]);
+      console.warn('Could not fetch GitHub repos from backend:', err);
+      setRepos([]);
+      setSelectedRepoIds([]);
     } finally {
       setLoadingRepos(false);
     }
   };
 
   const handleVerifyGithub = async () => {
+    const tokenToTest = githubToken.trim();
+    if (!tokenToTest) {
+      setGithubVerified(false);
+      setGithubInfo('Enter a personal access token to verify, or skip - GitHub sign-in already covers your public data.');
+      return;
+    }
     setIsVerifyingGithub(true);
-    const tokenToTest = githubToken.trim() || 'ghp_demoTokenYuvasreeProductivity2026DevPulse';
-    if (!githubToken) setGithubToken(tokenToTest);
 
     const result = await authAndIntegrationsService.testGitHubConnection(tokenToTest);
     setIsVerifyingGithub(false);
     if (result.success) {
       setGithubVerified(true);
-      setGithubInfo(`Verified user @${result.data?.login || 'yuvasree023'} (${result.data?.public_repos || 24} repos)`);
+      setGithubInfo(`Verified user @${result.data?.login} (${result.data?.public_repos ?? 0} repos)`);
       // Auto-load user repositories for tracking
       fetchUserRepos();
     } else {
@@ -106,8 +105,8 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
   };
 
   const handleVerifyVscode = () => {
+    if (!vscodeKey.trim()) return;
     setIsVerifyingVscode(true);
-    if (!vscodeKey) setVscodeKey('vsc_live_sync_8892f3a41b2c');
     setTimeout(() => {
       authAndIntegrationsService.testVSCodeHeartbeat();
       setIsVerifyingVscode(false);
@@ -116,8 +115,8 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
   };
 
   const handleVerifyAntigravity = () => {
+    if (!antigravityKey.trim()) return;
     setIsVerifyingAntigravity(true);
-    if (!antigravityKey) setAntigravityKey('agy_live_core_398a10bcfe74');
     setTimeout(() => {
       authAndIntegrationsService.pingAntigravity();
       setIsVerifyingAntigravity(false);
@@ -129,9 +128,9 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
     setIsSaving(true);
     setSyncStatusMsg('Saving encrypted credentials and configuring repositories...');
     await authAndIntegrationsService.saveAllCredentials({
-      githubToken: githubToken || 'ghp_demoTokenYuvasreeProductivity2026DevPulse',
-      vscodeToken: vscodeKey || 'vsc_live_sync_8892f3a41b2c',
-      antigravityKey: antigravityKey || 'agy_live_core_398a10bcfe74',
+      githubToken,
+      vscodeToken: vscodeKey,
+      antigravityKey,
       jiraKey,
       linearKey,
     });
@@ -580,4 +579,4 @@ export function OnboardingFlow({ onComplete, onSkip }: OnboardingFlowProps) {
       </footer>
     </div>
   );
-        }
+}
