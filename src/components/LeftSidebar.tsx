@@ -14,6 +14,7 @@ import {
   Key,
   TrendingUp,
   Compass,
+  Clock,
 } from 'lucide-react';
 
 interface LeftSidebarProps {
@@ -36,6 +37,8 @@ export function LeftSidebar({
     { id: 'ai-impact', label: 'AI Impact', icon: Sparkles },
     { id: 'ml-insights', label: 'ML Insights', icon: BrainCircuit },
     { id: 'repositories', label: 'Repositories', icon: FolderGit2 },
+    { id: 'activity', label: 'My Activity', icon: Clock },
+    { id: 'privacy', label: 'Privacy', icon: ShieldAlert },
   ];
 
   const aiSuiteItems = [
