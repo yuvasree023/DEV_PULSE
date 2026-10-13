@@ -26,55 +26,21 @@ ATTRIBUTION_NOTICE = (
 
 # In-memory store for securely encrypted integration credentials on Render
 ENCRYPTED_VAULT: Dict[str, Dict[str, Any]] = {
-    "github": {
-        "encrypted_token": encrypt_token("ghp_demoTokenYuvasreeProductivity2026DevPulse"),
-        "masked": "ghp_••••••••Pulse",
-        "connected": True,
-        "username": "yuvasree023",
-        "last_synced": datetime.now(timezone.utc).isoformat(),
-        "repos_count": 18,
-        "status": "connected",
-    },
-    "vscode": {
-        "encrypted_token": encrypt_token("vsc_live_sync_8892f3a41b2c"),
-        "masked": "vsc_••••••••b2c",
-        "connected": True,
-        "last_heartbeat": datetime.now(timezone.utc).isoformat(),
-        "active_minutes": 260,
-        "workspace": "DEV_PULSE (TypeScript / Python)",
-        "status": "connected",
-    },
-    "antigravity": {
-        "encrypted_token": encrypt_token("agy_live_core_398a10bcfe74"),
-        "masked": "agy_••••••••fe74",
-        "connected": True,
-        "last_ping": datetime.now(timezone.utc).isoformat(),
-        "agent_mode": "autonomous",
-        "active_pipelines": 4,
-        "status": "connected",
-    },
-    "jira": {
-        "encrypted_token": "",
-        "masked": "",
-        "connected": False,
-        "status": "disconnected",
-    },
-    "linear": {
-        "encrypted_token": "",
-        "masked": "",
-        "connected": False,
-        "status": "disconnected",
-    },
+    "github": {"encrypted_token": "", "masked": "", "connected": False, "status": "disconnected"},
+    "vscode": {"encrypted_token": "", "masked": "", "connected": False, "status": "disconnected"},
+    "antigravity": {"encrypted_token": "", "masked": "", "connected": False, "status": "disconnected"},
+    "jira": {"encrypted_token": "", "masked": "", "connected": False, "status": "disconnected"},
+    "linear": {"encrypted_token": "", "masked": "", "connected": False, "status": "disconnected"},
 }
 
 # Live developer activity cache updated by background tasks
 DEVELOPER_ACTIVITY_CACHE: Dict[str, Any] = {
-    "last_sync_timestamp": datetime.now(timezone.utc).isoformat(),
-    "live_commits_today": 9,
-    "active_branches": 3,
-    "uninterrupted_minutes": 195,
-    "flow_score": 92,
-    "sync_status": "synced",
+    "last_sync_timestamp": None,
+    "live_commits_today": 0,
+    "active_branches": 0,
+    "uninterrupted_minutes": 0,
+    "flow_score": 0,
+    "sync_status": "never_synced",
 }
 
 
@@ -93,13 +59,6 @@ async def background_fetch_github_activity(encrypted_token: str):
 
     logger.info("Starting background GitHub activity sync...")
     try:
-        if token.startswith("ghp_demo") or "Yuvasree" in token:
-            DEVELOPER_ACTIVITY_CACHE["last_sync_timestamp"] = datetime.now(timezone.utc).isoformat()
-            DEVELOPER_ACTIVITY_CACHE["live_commits_today"] = 12
-            DEVELOPER_ACTIVITY_CACHE["sync_status"] = "synced"
-            logger.info("Demo GitHub telemetry synced in background.")
-            return
-
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(
                 "https://api.github.com/user",
