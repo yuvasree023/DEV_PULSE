@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from typing import Generator
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
@@ -43,6 +44,14 @@ else:
 # actual_backend records what the service is really using, so health checks can
 # report the true persistence layer instead of a bare connected flag.
 actual_backend = "sqlite"
+def _sanitize_error(exc: Exception) -> str:
+    """First line of the error, defensively redacted: never log connection
+    strings or passwords even if a driver embeds them in its message."""
+    text = (str(exc).splitlines() or ["unknown error"])[0][:300]
+    text = re.sub(r"(://[^:/\s]+:)[^@\s]+(@)", r"\1***\2", text)
+    text = re.sub(r"(?i)(password\s*=\s*)\S+", r"\1***", text)
+    return text
+
 try:
     engine = create_engine(db_url, connect_args=connect_args, **engine_kwargs)
     if is_postgres:
@@ -53,7 +62,7 @@ try:
 except Exception as exc:
     # Never log db_url: it embeds credentials. psycopg2 error text carries no
     # password, only host/user/dbname detail.
-    reason = (str(exc).splitlines() or ["unknown error"])[0][:300]
+    reason = _sanitize_error(exc)
     logger.error(
         "Configured database unreachable (%s: %s); using SQLite fallback.",
         type(exc).__name__, reason,
@@ -85,6 +94,5 @@ def check_db_connection() -> bool:
             connection.execute(text("SELECT 1"))
         return True
     except Exception as exc:
-        reason = (str(exc).splitlines() or ["unknown error"])[0][:300]
-        logger.error("Database connection check failed (%s: %s)", type(exc).__name__, reason)
+        logger.error("Database connection check failed (%s: %s)", type(exc).__name__, _sanitize_error(exc))
         return False
