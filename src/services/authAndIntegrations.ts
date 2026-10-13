@@ -26,12 +26,12 @@ export const ANONYMOUS_USER: UserProfile = {
 
 // Default mock authenticated developer profile (used for demo sign-in)
 export const DEFAULT_USER: UserProfile = {
-  id: 'usr_dev_023',
-  name: 'Yuvasree',
-  email: 'yuvasree@devpulse.ai',
-  role: 'Lead ML Engineer & Architect',
-  team: 'Core Intelligence & Platform',
-  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=128&auto=format&fit=crop&q=80',
+  id: 'usr_demo_001',
+  name: 'Demo User',
+  email: 'demo@devpulse.local',
+  role: 'Demo persona',
+  team: '',
+  avatar: '',
   isAuthenticated: true,
   provider: 'github',
 };
