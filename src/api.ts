@@ -125,12 +125,14 @@ export interface ActivitySummary {
 }
 
 export interface ActivitySessionRow {
+  id: number;
   project: string;
   language: string | null;
   editor: string;
   started_at: string | null;
   ended_at: string | null;
   duration_seconds: number;
+  label: string | null;
 }
 
 export const api = {
