@@ -40,7 +40,7 @@ export function PrivacyView() {
           <li>DevPulse requests only <code>read:user</code> and <code>user:email</code>: your public profile and email.</li>
           <li>Your dashboard shows your <strong>public repositories</strong> and their public activity (commits, PRs).</li>
           <li>Private repositories are <strong>never</strong> requested or shown with GitHub sign-in.</li>
-          <li>If you sign in with a token instead, public repos need no scopes. For private repos, use a fine-grained token with read-only access to only the repositories you choose.</li>
+          <li>No GitHub PAT is needed in this workspace. Private repository access is not offered.</li>
           <li>DevPulse never writes to your GitHub account.</li>
         </ul>
       </section>
@@ -54,7 +54,7 @@ export function PrivacyView() {
           <li>Tracks focused coding intervals locally: workspace folder name, file language, editor name, start/end time.</li>
           <li>Idle time is excluded automatically; you can pause tracking anytime from the status bar.</li>
           <li>Sends only those session summaries to your own DevPulse backend. It never sends file paths, file contents, keystrokes, or anything you type.</li>
-          <li>Your GitHub token is exchanged for a DevPulse session and is never stored by the extension; the session token lives in VS Code SecretStorage.</li>
+          <li>Copy your current DevPulse session from Connections into the extension. It lives in VS Code SecretStorage, not settings. Reconnect when it expires.</li>
         </ul>
       </section>
 
