@@ -46,7 +46,7 @@ async def list_github_repositories(
 
     # Fetch live from GitHub API
     try:
-        raw_repos = await get_github_user_repos(token)
+        raw_repos = await get_github_user_repos(token, user.username)
         user_tracked = {
             ur.repo_id: ur.is_selected
             for ur in db.query(UserRepository).filter(UserRepository.user_id == user.id).all()
@@ -114,7 +114,7 @@ def get_tracked_repositories(
 
 
 @router.post("/select", summary="Select or deselect repositories to track")
-def select_repositories(
+async def select_repositories(
     req: SelectReposRequest,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -123,6 +123,25 @@ def select_repositories(
     Updates which repositories are selected for telemetry tracking.
     """
     selected_set = set(req.selected_repo_ids)
+    token = get_user_github_token(user, db)
+    if not token:
+        raise HTTPException(status_code=400, detail="GitHub sign-in is required")
+    try:
+        public = {r["id"]: r for r in await get_github_user_repos(token, user.username)}
+    except Exception:
+        raise HTTPException(status_code=502, detail="Could not validate public repositories with GitHub")
+    if not selected_set.issubset(public):
+        raise HTTPException(status_code=400, detail="Only your current public repositories can be selected")
+    # Persist the actual selected repo identity before creating tracking rows.
+    for repo_id in selected_set:
+        r = public[repo_id]
+        repo = db.query(Repository).filter(Repository.id == repo_id).first()
+        if not repo:
+            repo = Repository(id=repo_id, url=r["html_url"], full_name=r["full_name"],
+                language=r.get("language"), stars=r.get("stargazers_count", 0),
+                forks=r.get("forks_count", 0), is_forked=r.get("fork", False))
+            db.add(repo)
+    db.flush()
 
     # Update existing
     existing = db.query(UserRepository).filter(UserRepository.user_id == user.id).all()
@@ -164,7 +183,12 @@ async def _run_sync_task(user_id: int, repo_ids: List[int], token: str):
         )
 
         for ur, repo in tracked_entries:
-            repo_name = repo.full_name if repo else f"{user.username}/DEV_PULSE"
+            if not repo:
+                ur.sync_status = "error"
+                ur.error_message = "Repository identity is missing. Select the repository again."
+                db.commit()
+                continue
+            repo_name = repo.full_name
             await sync_repository_data(user_id, ur.repo_id, repo_name, token, db)
 
     except Exception as e:
