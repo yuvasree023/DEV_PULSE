@@ -48,7 +48,7 @@ class ActivityTracker {
   private lastActivity = 0;
   private project: string | null = null;
   private language: string | null = null;
-  private paused = false;
+  private paused = true;
   private tickCount = 0;
   private statusBar: vscode.StatusBarItem;
 
@@ -130,6 +130,11 @@ class ActivityTracker {
     }
   }
 
+  async sendNow(): Promise<void> {
+    this.closeSegment(this.lastActivity);
+    await this.flush();
+  }
+
   async flush(): Promise<void> {
     const token = await this.context.secrets.get(TOKEN_KEY);
     const queue = this.context.globalState.get<SessionRecord[]>(QUEUE_KEY, []);
@@ -154,6 +159,8 @@ class ActivityTracker {
     }
   }
 
+  resume() { this.paused = false; this.noteActivity(); this.updateStatus(); }
+
   togglePause() {
     this.paused = !this.paused;
     if (this.paused) {
@@ -173,8 +180,10 @@ class ActivityTracker {
   }
 
   async dispose() {
-    this.closeSegment(Date.now());
+    this.paused = true;
+    this.closeSegment(this.lastActivity);
     await this.flush();
+    this.updateStatus();
   }
 }
 
@@ -224,7 +233,7 @@ class StatsProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
 async function refresh(provider: StatsProvider, context: vscode.ExtensionContext) {
   const token = await context.secrets.get(TOKEN_KEY);
   if (!token) {
-    provider.setMessage('Run "DevPulse: Sign in with GitHub Token" to connect.');
+    provider.setMessage('Run "DevPulse: Connect Dashboard Session" to connect.');
     return;
   }
   try {
@@ -258,48 +267,39 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('devpulse.signIn', async () => {
-      const pat = await vscode.window.showInputBox({
-        prompt: 'GitHub Personal Access Token (public repos need no scopes; for private repos use a fine-grained read-only token)',
+      const token = await vscode.window.showInputBox({
+        prompt: 'Paste your DevPulse dashboard session (Connections > Copy my dashboard session). Not a GitHub token.',
         password: true,
         ignoreFocusOut: true,
       });
-      if (!pat) {
-        return;
-      }
+      if (!token) return;
       try {
-        const base = backendUrl();
-        if (!base) {
-          throw new Error('Set devpulse.backendUrl in Settings first.');
-        }
-        const res = await fetch(`${base}/api/auth/pat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify({ token: pat }),
-        });
-        if (!res.ok) {
-          throw new Error(`Sign-in failed (${res.status}).`);
-        }
-        const data = (await res.json()) as { access_token?: string };
-        if (!data.access_token) {
-          throw new Error('Backend did not return a session token.');
-        }
+        const res = await apiFetch('/api/auth/me', token.trim());
+        if (!res.ok) throw new Error(`Session verification failed (${res.status}). Copy a fresh session from the dashboard.`);
+        const data = { access_token: token.trim() };
+        const previous = await context.secrets.get(TOKEN_KEY);
+        if (previous !== data.access_token) await context.globalState.update(QUEUE_KEY, []);
         await context.secrets.store(TOKEN_KEY, data.access_token);
         vscode.window.showInformationMessage('DevPulse: signed in. Coding activity is tracked locally and only session metadata is sent to your backend.');
+        tracker.resume();
         await refresh(provider, context);
       } catch (err) {
         vscode.window.showErrorMessage(`DevPulse: ${err instanceof Error ? err.message : err}`);
       }
     }),
+    vscode.commands.registerCommand('devpulse.sendNow', async () => { await tracker.sendNow(); await refresh(provider, context); vscode.window.showInformationMessage('DevPulse: send attempted. Refresh the dashboard to confirm receipt; offline sessions stay queued.'); }),
     vscode.commands.registerCommand('devpulse.refresh', () => refresh(provider, context)),
     vscode.commands.registerCommand('devpulse.pause', () => tracker.togglePause()),
     vscode.commands.registerCommand('devpulse.signOut', async () => {
       await tracker.dispose();
+      await context.globalState.update(QUEUE_KEY, []);
       await context.secrets.delete(TOKEN_KEY);
       provider.setMessage('Signed out.');
     }),
     { dispose: () => void tracker.dispose() },
   );
 
+  void context.secrets.get(TOKEN_KEY).then(token => { if (token) tracker.resume(); });
   void refresh(provider, context);
 }
 
