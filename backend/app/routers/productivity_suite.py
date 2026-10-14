@@ -144,114 +144,13 @@ class BurnoutPredictRequest(BaseModel):
 # -------------------------------------------------------------
 # Endpoints
 # -------------------------------------------------------------
-@router.post("/integrations/credentials", summary="Securely store encrypted developer tool credentials")
-@router.post("/api/integrations/credentials", include_in_schema=False)
-def save_encrypted_credentials(
-    req: SaveCredentialsRequest,
-    background_tasks: BackgroundTasks,
-    current_user: "User | None" = Depends(get_current_user_optional),
-):
-    if current_user is None:
-        raise HTTPException(status_code=401, detail="Authentication required.")
-    """
-    Encrypts user tokens with symmetric AES/HMAC encryption and initiates
-    asynchronous background telemetry syncing.
-    """
-    results: Dict[str, Any] = {}
-
-    if req.github_token:
-        enc = encrypt_token(req.github_token)
-        ENCRYPTED_VAULT["github"]["encrypted_token"] = enc
-        ENCRYPTED_VAULT["github"]["masked"] = mask_token(req.github_token)
-        ENCRYPTED_VAULT["github"]["connected"] = True
-        ENCRYPTED_VAULT["github"]["last_synced"] = datetime.now(timezone.utc).isoformat()
-        background_tasks.add_task(background_fetch_github_activity, enc)
-        results["github"] = {"status": "saved_encrypted", "masked": ENCRYPTED_VAULT["github"]["masked"]}
-
-    if req.vscode_token:
-        enc = encrypt_token(req.vscode_token)
-        ENCRYPTED_VAULT["vscode"]["encrypted_token"] = enc
-        ENCRYPTED_VAULT["vscode"]["masked"] = mask_token(req.vscode_token)
-        ENCRYPTED_VAULT["vscode"]["connected"] = True
-        ENCRYPTED_VAULT["vscode"]["last_heartbeat"] = datetime.now(timezone.utc).isoformat()
-        results["vscode"] = {"status": "saved_encrypted", "masked": ENCRYPTED_VAULT["vscode"]["masked"]}
-
-    if req.antigravity_key:
-        enc = encrypt_token(req.antigravity_key)
-        ENCRYPTED_VAULT["antigravity"]["encrypted_token"] = enc
-        ENCRYPTED_VAULT["antigravity"]["masked"] = mask_token(req.antigravity_key)
-        ENCRYPTED_VAULT["antigravity"]["connected"] = True
-        results["antigravity"] = {"status": "saved_encrypted", "masked": ENCRYPTED_VAULT["antigravity"]["masked"]}
-
-    if req.jira_key:
-        enc = encrypt_token(req.jira_key)
-        ENCRYPTED_VAULT["jira"]["encrypted_token"] = enc
-        ENCRYPTED_VAULT["jira"]["masked"] = mask_token(req.jira_key)
-        ENCRYPTED_VAULT["jira"]["connected"] = True
-        results["jira"] = {"status": "saved_encrypted", "masked": ENCRYPTED_VAULT["jira"]["masked"]}
-
-    if req.linear_key:
-        enc = encrypt_token(req.linear_key)
-        ENCRYPTED_VAULT["linear"]["encrypted_token"] = enc
-        ENCRYPTED_VAULT["linear"]["masked"] = mask_token(req.linear_key)
-        ENCRYPTED_VAULT["linear"]["connected"] = True
-        results["linear"] = {"status": "saved_encrypted", "masked": ENCRYPTED_VAULT["linear"]["masked"]}
-
-    return {
-        "success": True,
-        "message": "Developer tool credentials encrypted and stored securely.",
-        "results": results,
-        "modelAttribution": ATTRIBUTION_NOTICE,
-    }
-
-
-@router.get("/integrations/credentials", summary="Retrieve masked developer tool integration status")
-@router.get("/api/integrations/credentials", include_in_schema=False)
-def get_credentials_status(
-    current_user: "User | None" = Depends(get_current_user_optional),
-):
-    if current_user is None:
-        raise HTTPException(status_code=401, detail="Authentication required.")
-    """
-    Returns masked credentials and connection statuses without revealing raw secrets.
-    """
-    sanitized = {}
-    for provider, data in ENCRYPTED_VAULT.items():
-        sanitized[provider] = {
-            "connected": data.get("connected", False),
-            "masked": data.get("masked", ""),
-            "status": data.get("status", "disconnected"),
-            "username": data.get("username"),
-            "last_synced": data.get("last_synced") or data.get("last_heartbeat") or data.get("last_ping"),
-        }
-    return {
-        "integrations": sanitized,
-        "developerActivity": DEVELOPER_ACTIVITY_CACHE,
-        "modelAttribution": ATTRIBUTION_NOTICE,
-    }
-
-
-@router.post("/integrations/sync-background", summary="Trigger background sync of developer activity")
+# Shared in-memory credential APIs are retired, not reused across accounts.
+@router.api_route("/integrations/credentials", methods=["GET", "POST"], include_in_schema=False)
+@router.api_route("/api/integrations/credentials", methods=["GET", "POST"], include_in_schema=False)
+@router.post("/integrations/sync-background", include_in_schema=False)
 @router.post("/api/integrations/sync-background", include_in_schema=False)
-def trigger_background_sync(
-    background_tasks: BackgroundTasks,
-    current_user: "User | None" = Depends(get_current_user_optional),
-):
-    if current_user is None:
-        raise HTTPException(status_code=401, detail="Authentication required.")
-    """
-    Triggers an asynchronous background sync job to poll live GitHub and IDE activity.
-    """
-    enc_token = ENCRYPTED_VAULT["github"].get("encrypted_token", "")
-    if enc_token:
-        background_tasks.add_task(background_fetch_github_activity, enc_token)
-
-    return {
-        "success": True,
-        "status": "background_sync_queued",
-        "lastSynced": DEVELOPER_ACTIVITY_CACHE.get("last_sync_timestamp"),
-        "modelAttribution": ATTRIBUTION_NOTICE,
-    }
+def retired_credentials():
+    raise HTTPException(status_code=410, detail="Legacy credential storage retired. Use GitHub OAuth and authenticated activity sessions.")
 
 
 @router.get("/productivity/realtime", summary="Real-time productivity telemetry & flow index")
@@ -316,57 +215,11 @@ def get_realtime_productivity(
     }
 
 
-@router.post("/productivity/integrations/test", summary="Verify developer tool credentials")
+@router.post("/productivity/integrations/test", include_in_schema=False)
 @router.post("/api/productivity/integrations/test", include_in_schema=False)
-def test_integration(
-    req: TestIntegrationRequest,
-    current_user: "User | None" = Depends(get_current_user_optional),
-):
-    if current_user is None:
-        raise HTTPException(status_code=401, detail="Authentication required.")
-    """
-    Validates token connection status against external developer tool APIs.
-    """
-    provider = req.provider.lower()
-    if provider == "github":
-        return {
-            "success": True,
-            "provider": "github",
-            "username": "yuvasree023",
-            "rate_limit_remaining": 4980,
-            "status": "connected",
-            "scopes": ["repo", "read:user", "workflow"],
-        }
-    elif provider == "vscode":
-        return {
-            "success": True,
-            "provider": "vscode",
-            "status": "heartbeat_received",
-            "active_minutes": 260,
-            "workspace": "DEV_PULSE (TypeScript / Python)",
-        }
-    elif provider == "antigravity":
-        return {
-            "success": True,
-            "provider": "antigravity",
-            "status": "agent_swarm_responsive",
-            "active_pipelines": 4,
-            "model": "Yuvasree Multi-Agent Orchestrator",
-        }
-    elif provider in ["jira", "linear"]:
-        return {
-            "success": True,
-            "provider": provider,
-            "status": "api_authenticated",
-            "active_tickets": 8,
-        }
-    else:
-        raise HTTPException(status_code=400, detail=f"Unsupported provider '{provider}'")
+def retired_test():
+    raise HTTPException(status_code=410, detail="Simulated connection tests retired. Verify real repositories and received sessions.")
 
-
-# -------------------------------------------------------------
-# 4 Dedicated ML Productivity Tools
-# -------------------------------------------------------------
 
 # Tool 1: ML-Based Burnout & Flow State Predictor
 @router.post("/ai-suite/flow-burnout", summary="ML-Based Burnout & Flow State Predictor")
