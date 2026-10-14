@@ -82,12 +82,14 @@ def list_sessions(limit: int = 50, db: Session = Depends(get_db), user: User = D
     )
     return [
         {
+            "id": r.id,
             "project": r.project,
             "language": r.language,
             "editor": r.editor,
             "started_at": r.started_at.isoformat() if r.started_at else None,
             "ended_at": r.ended_at.isoformat() if r.ended_at else None,
             "duration_seconds": r.duration_seconds,
+            "label": r.label,
         }
         for r in rows
     ]
@@ -121,6 +123,38 @@ def activity_summary(db: Session = Depends(get_db), user: User = Depends(get_cur
         "by_language": [{"language": lang or "unknown", "seconds": int(sec)} for lang, sec in by_language],
         "by_project": [{"project": proj, "seconds": int(sec)} for proj, sec in by_project],
     }
+
+
+class SessionLabelIn(BaseModel):
+    label: Optional[str] = Field(None, max_length=64, description="Short note, e.g. 'connectivity test'; null or empty clears it.")
+
+
+@router.patch("/sessions/{session_id}/label", summary="Set or clear a note on one of your own sessions")
+def set_session_label(session_id: int, body: SessionLabelIn, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    row = (
+        db.query(CodingSession)
+        .filter(CodingSession.id == session_id, CodingSession.user_id == user.id)
+        .first()
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="Session not found.")
+    row.label = (body.label or "").strip() or None
+    db.commit()
+    return {"id": row.id, "label": row.label}
+
+
+@router.delete("/sessions/{session_id}", summary="Delete one of your own recorded coding sessions")
+def delete_session(session_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    deleted = (
+        db.query(CodingSession)
+        .filter(CodingSession.id == session_id, CodingSession.user_id == user.id)
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Session not found.")
+    logger.info("Deleted coding session %s for user %s", session_id, user.id)
+    return {"deleted": 1}
 
 
 @router.delete("/sessions", summary="Delete all of your own recorded coding sessions")
