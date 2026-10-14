@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import time
+from cryptography.fernet import Fernet, InvalidToken
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 
@@ -31,42 +32,26 @@ def _derive_key(secret: str) -> bytes:
 
 
 def encrypt_token(plain_token: str) -> str:
-    """
-    Encrypts a plain-text token using AES-style XOR + HMAC stream cipher.
-    Returns URL-safe base64 string prefixed with 'enc_v1:'.
-    """
+    """Authenticated encryption for provider credentials (Fernet / AES-128-CBC + HMAC)."""
     if not plain_token:
         return ""
-    key = _derive_key(ENCRYPTION_SECRET)
-    data = plain_token.encode("utf-8")
-
-    encrypted_bytes = bytearray(len(data))
-    for i, b in enumerate(data):
-        encrypted_bytes[i] = b ^ key[i % len(key)]
-
-    encoded = base64.urlsafe_b64encode(bytes(encrypted_bytes)).decode("utf-8")
-    return f"enc_v1:{encoded}"
+    key = base64.urlsafe_b64encode(_derive_key(ENCRYPTION_SECRET))
+    return "enc_v2:" + Fernet(key).encrypt(plain_token.encode()).decode()
 
 
 def decrypt_token(cipher_token: str) -> str:
-    """
-    Decrypts an encrypted token prefixed with 'enc_v1:'.
-    """
+    """Read authenticated v2 records and legacy records for in-place migration."""
     if not cipher_token:
         return ""
-    if not cipher_token.startswith("enc_v1:"):
-        return cipher_token
-
     try:
-        raw_b64 = cipher_token.replace("enc_v1:", "")
-        encrypted_bytes = base64.urlsafe_b64decode(raw_b64.encode("utf-8"))
-        key = _derive_key(ENCRYPTION_SECRET)
-
-        decrypted_bytes = bytearray(len(encrypted_bytes))
-        for i, b in enumerate(encrypted_bytes):
-            decrypted_bytes[i] = b ^ key[i % len(key)]
-
-        return decrypted_bytes.decode("utf-8")
+        if cipher_token.startswith("enc_v2:"):
+            key = base64.urlsafe_b64encode(_derive_key(ENCRYPTION_SECRET))
+            return Fernet(key).decrypt(cipher_token[7:].encode()).decode()
+        if cipher_token.startswith("enc_v1:"):
+            encrypted = base64.urlsafe_b64decode(cipher_token[7:].encode())
+            key = _derive_key(ENCRYPTION_SECRET)
+            return bytes(b ^ key[i % len(key)] for i, b in enumerate(encrypted)).decode()
+        return cipher_token
     except Exception:
         return ""
 
@@ -75,7 +60,7 @@ def mask_token(plain_or_cipher: str) -> str:
     """
     Returns a masked version for safe UI display (e.g. 'ghp_••••••••ab12').
     """
-    token = decrypt_token(plain_or_cipher) if plain_or_cipher.startswith("enc_v1:") else plain_or_cipher
+    token = decrypt_token(plain_or_cipher) if plain_or_cipher.startswith(("enc_v1:", "enc_v2:")) else plain_or_cipher
     if not token or len(token) < 8:
         return "••••••••"
     prefix = token[:4]
