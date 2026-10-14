@@ -203,6 +203,7 @@ class AuthAndIntegrationsService {
     this.user = { ...ANONYMOUS_USER };
     try {
       localStorage.removeItem(STORAGE_KEY_AUTH);
+      localStorage.removeItem('devpulse_jwt_token');
       localStorage.removeItem(STORAGE_KEY_ONBOARDING);
       this.syncCookies(null, false);
     } catch (e) {
