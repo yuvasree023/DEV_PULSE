@@ -22,6 +22,7 @@ class CodingSession(Base):
     started_at = Column(DateTime(timezone=True), nullable=False, doc="Session start (UTC)")
     ended_at = Column(DateTime(timezone=True), nullable=False, doc="Session end (UTC)")
     duration_seconds = Column(Integer, nullable=False, doc="Active seconds, idle time excluded")
+    label = Column(String(64), nullable=True, doc="Optional owner-set note, e.g. marking a connectivity test")
     created_at = Column(
         DateTime(timezone=True),
         nullable=False,
