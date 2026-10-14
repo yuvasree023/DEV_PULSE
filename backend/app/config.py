@@ -21,10 +21,10 @@ class Settings(BaseSettings):
     GITHUB_REDIRECT_URI: str = ""
 
     # Security & User Sessions
-    JWT_SECRET: str = "devpulse-super-jwt-secret-key-render-2026"
+    JWT_SECRET: str = ""
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
-    ENCRYPTION_SECRET_KEY: str = "devpulse-super-secret-render-key-2026"
+    ENCRYPTION_SECRET_KEY: str = ""
     FRONTEND_URL: str = "https://devpulse-app-snowy.vercel.app"
 
     # Google Gemini API
