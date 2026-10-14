@@ -1,21 +1,11 @@
-# DevPulse for VS Code
+# DevPulse editor activity
 
-See your DevPulse engineering dashboard without leaving the editor.
+Install the latest `.vsix` from the repository Releases page using VS Code's Extensions menu > Install from VSIX. Default backend: https://devpulse-backend-8mk1.onrender.com.
 
-## What it does
+Sign in to https://devpulse-app-snowy.vercel.app with GitHub, open Connections and copy your dashboard session. In VS Code run **DevPulse: Connect Dashboard Session** and paste it into the hidden prompt. Do not put tokens in settings, source code or chat. The session is stored with VS Code SecretStorage. Reconnect when it expires. No GitHub PAT is required.
 
-- Adds a **DevPulse** view to the Activity Bar showing your commits, pull requests, repositories, and AI-adoption stats from your own DevPulse backend.
-- Signs in through your DevPulse backend with a GitHub Personal Access Token. The token is exchanged for a DevPulse session token, which is stored in VS Code SecretStorage. Your GitHub token itself is never stored by the extension.
-- Read-only: the extension only calls GET endpoints after sign-in.
+Tracking begins after connecting. Edit in a project for at least 10 seconds, then run **DevPulse: Send Activity Now** and refresh the dashboard to confirm receipt. The extension excludes intervals after 120 seconds without activity. It records folder name, language, editor name and timings, not code or full paths. Session metadata queues locally while offline. Pause from the status bar; sign out to stop and clear the local queue. Never reuse a queued profile for another account.
 
-## Setup (from source)
+This is editor activity, not proof of AI use or productivity. Google's Antigravity extension can run in VS Code according to its official docs; DevPulse cannot identify agent runs. Standalone Antigravity IDE compatibility is untested.
 
-1. `cd vscode-extension && npm install && npm run compile`
-2. Press `F5` in VS Code to launch an Extension Development Host, or package with `npx vsce package` and install the `.vsix` via "Extensions: Install from VSIX...".
-3. Set `devpulse.backendUrl` in Settings to your deployed DevPulse backend URL.
-4. Run **DevPulse: Sign in with GitHub Token** from the Command Palette. Public repositories need no token scopes; for private repositories use a fine-grained token with read-only access to the repositories you choose.
-
-## Notes
-
-- Data shown is whatever your DevPulse backend has synced from GitHub. Public-only sign-in shows public repositories only.
-- The extension does not collect or send telemetry anywhere except your own configured backend.
+Build: `npm install && npm run compile && npx @vscode/vsce package`. No Marketplace publication is implied.
