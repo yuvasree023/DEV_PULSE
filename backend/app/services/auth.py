@@ -84,7 +84,7 @@ def get_user_github_token(user: User, db: Session) -> Optional[str]:
     if not token_record:
         return None
     plain = decrypt_token(token_record.encrypted_access_token)
-    if plain and not token_record.encrypted_access_token.startswith("enc_v2:"):
+    if plain:
         token_record.encrypted_access_token = encrypt_token(plain)
         db.commit()
     return plain
