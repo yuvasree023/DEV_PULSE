@@ -78,14 +78,14 @@ export function RealTimeDashboardView() {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-bold text-slate-900">
-                Real-Time Productivity Measurement Engine
+                Productivity simulator
               </h2>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 font-bold">
-                Yuvasree ML Flow v2.5
+                Sample model
               </span>
             </div>
             <p className="text-[11px] text-slate-500 flex items-center gap-2">
-              <span>Streaming active telemetry from connected IDE & git pipelines</span>
+              <span>Locally generated examples, not connected editor telemetry</span>
               <span>•</span>
               <span className="font-mono text-purple-700 font-semibold">
                 Last calculated: {metrics.lastCalculated}
@@ -104,7 +104,7 @@ export function RealTimeDashboardView() {
                 selectedPolling === 2000 ? 'bg-white text-purple-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              2s Pulse
+              2s demo
             </button>
             <button
               onClick={() => handlePollingChange(5000)}
@@ -112,7 +112,7 @@ export function RealTimeDashboardView() {
                 selectedPolling === 5000 ? 'bg-white text-purple-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              5s Live
+              5s demo
             </button>
             <button
               onClick={() => handlePollingChange(15000)}
@@ -223,7 +223,7 @@ export function RealTimeDashboardView() {
 
           <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
             <span>Status: <strong className="text-slate-800">{metrics.flowStateCategory}</strong></span>
-            <span className="font-mono text-purple-600">Yuvasree ML</span>
+            <span className="font-mono text-purple-600">Sample model</span>
           </div>
         </div>
 
@@ -345,7 +345,7 @@ export function RealTimeDashboardView() {
               </h3>
             </div>
             <span className="text-[10px] font-mono text-purple-700 bg-purple-50 px-2 py-0.5 rounded font-semibold">
-              Live Feed
+              Sample feed
             </span>
           </div>
 
@@ -393,7 +393,7 @@ export function RealTimeDashboardView() {
               </h3>
             </div>
             <span className="text-[10px] font-mono text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded font-semibold">
-              Live Matrix
+              Sample matrix
             </span>
           </div>
 
