@@ -2,7 +2,7 @@
   "name": "devpulse",
   "displayName": "DevPulse",
   "description": "Private coding-activity tracker and stats for your own DevPulse dashboard. Tracks project, language, and focused time locally; sends only session metadata to your own backend.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "yuvasree023",
   "license": "MIT",
   "engines": {
@@ -30,7 +30,7 @@
     "commands": [
       {
         "command": "devpulse.signIn",
-        "title": "DevPulse: Sign in with GitHub Token"
+        "title": "DevPulse: Connect Dashboard Session"
       },
       {
         "command": "devpulse.refresh",
@@ -43,6 +43,10 @@
       {
         "command": "devpulse.signOut",
         "title": "DevPulse: Sign Out"
+      },
+      {
+        "command": "devpulse.sendNow",
+        "title": "DevPulse: Send Activity Now"
       }
     ],
     "viewsContainers": {
