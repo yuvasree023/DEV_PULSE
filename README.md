@@ -2,6 +2,17 @@
 
 AI Impact & Developer Productivity Telemetry Dashboard with Real Data Analytics, Dynamic Dataset ETL, Scikit-Learn K-Means Clustering, and Grounded Google Gemini Explanations.
 
+## Live app and downloads
+
+- [Open DevPulse dashboard](https://devpulse-app-snowy.vercel.app/dashboard) - sign in with GitHub to view your own activity.
+- [Live API documentation](https://devpulse-backend-8mk1.onrender.com/docs)
+- [Live backend health check](https://devpulse-backend-8mk1.onrender.com/health)
+- [VS Code extension download (v0.2.0)](https://github.com/yuvasree023/DEV_PULSE/releases/tag/v0.2.0)
+- [Colab connector setup](docs/colab-connector.md)
+
+The personal dashboard keeps GitHub activity and optional connector sessions separate from the sample-data Research Lab. The analytics described below include that sample/demo environment; they are not measurements of your activity or proof of AI productivity gains.
+
+
 ---
 
 ## ⚡ Overview
@@ -54,7 +65,9 @@ innovation_ai/
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Local development setup
+
+To use the hosted app, follow the live links above. The `localhost` addresses below work only on your own computer after starting the development servers. They are not public demo links.
 
 ### 1. Backend Setup (FastAPI)
 
@@ -68,8 +81,8 @@ pip install -r requirements.txt
 # Run FastAPI server
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
-- API Docs: `http://localhost:8000/docs`
-- Health Check: `http://localhost:8000/health`
+- Local API docs: `http://localhost:8000/docs`
+- Local health check: `http://localhost:8000/health`
 
 ### 2. Frontend Setup (React + Vite)
 
@@ -80,7 +93,7 @@ npm install
 # Start Vite dev server
 npm run dev
 ```
-- Dashboard: `http://localhost:3000`
+- Local dashboard: `http://localhost:3000`
 
 ---
 
@@ -122,4 +135,3 @@ npm run dev
 - **GitHub**: Personal Access Token (PAT) connection with live rate limit inspection, verified username badge, and custom polling frequency.
 - **VS Code**: Companion extension telemetry integration, settings sync status, and incoming webhook endpoint.
 - **Google Antigravity**: API key connector for autonomous multi-agent pipelines and real-time swarm orchestration.
-
