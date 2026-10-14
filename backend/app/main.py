@@ -90,6 +90,20 @@ async def lifespan(app: FastAPI):
 
     except Exception as exc:
         logger.error(f"Error during schema validation: {exc}")
+
+    # Lightweight column migration: create_all does not alter existing tables.
+    try:
+        from sqlalchemy import text as _text
+        with engine.begin() as _conn:
+            if engine.url.get_backend_name() == "postgresql":
+                _conn.execute(_text("ALTER TABLE coding_sessions ADD COLUMN IF NOT EXISTS label VARCHAR(64)"))
+            else:
+                _cols = [r[1] for r in _conn.execute(_text("PRAGMA table_info(coding_sessions)"))]
+                if "label" not in _cols:
+                    _conn.execute(_text("ALTER TABLE coding_sessions ADD COLUMN label VARCHAR(64)"))
+        logger.info("coding_sessions.label column verified.")
+    except Exception as exc:
+        logger.warning("coding_sessions label migration skipped: %s", type(exc).__name__)
         
     yield
     logger.info("Shutting down application...")
