@@ -1,397 +1,62 @@
-import React, { useState, useEffect } from 'react';
-import { TopNav } from './components/TopNav';
-import { LeftSidebar } from './components/LeftSidebar';
+import React, { useEffect, useState } from 'react';
+import { Activity, ArrowUpRight, ArrowRight, Check, ChevronRight, Clock3, Code2, Copy, Download, FolderGit2, Github, Layers, Menu, Notebook, RefreshCw, ShieldCheck, X, LogOut, Plug, FlaskConical } from 'lucide-react';
+import { api } from './api';
+import { authAndIntegrationsService as auth } from './services/authAndIntegrations';
+import { PrivacyView } from './components/PrivacyView';
 import { OverviewView } from './components/OverviewView';
 import { AIToolsView } from './components/AIToolsView';
 import { AIImpactView } from './components/AIImpactView';
 import { MLInsightsView } from './components/MLInsightsView';
-import { RepositoriesView } from './components/RepositoriesView';
-import { DatasetModal } from './components/DatasetModal';
-import { AIInsightsModal } from './components/AIInsightsModal';
-import { ErrorCard } from './components/ErrorCard';
 import { RealTimeDashboardView } from './components/productivity/RealTimeDashboardView';
-import { IntegrationsView } from './components/integrations/IntegrationsView';
-import { ActivityView } from './components/ActivityView';
-import { PrivacyView } from './components/PrivacyView';
-import { LandingAuthPage } from './components/auth/LandingAuthPage';
-import { OnboardingFlow } from './components/onboarding/OnboardingFlow';
-import { AIProductivitySuiteHeader } from './components/ai-suite/AIProductivitySuiteHeader';
-import { BurnoutFlowPredictorView } from './components/ai-suite/BurnoutFlowPredictorView';
-import { CodeQualityRefactorView } from './components/ai-suite/CodeQualityRefactorView';
-import { CommitDocsGeneratorView } from './components/ai-suite/CommitDocsGeneratorView';
-import { PRVelocityLikelihoodView } from './components/ai-suite/PRVelocityLikelihoodView';
-import { AutomatedPRReviewerView } from './components/ai-suite/AutomatedPRReviewerView';
-import { api, API_BASE } from './api';
-import { OverviewMetrics, AIProductivitySuiteTab, UserProfile } from './types';
-import { authAndIntegrationsService } from './services/authAndIntegrations';
-import { RefreshCw, Zap } from 'lucide-react';
 
-export type AppView =
-  | 'landing'
-  | 'onboarding'
-  | 'dashboard'
-  | 'overview'
-  | 'realtime-engine'
-  | 'ai-tools'
-  | 'ai-impact'
-  | 'ml-insights'
-  | 'repositories'
-  | 'ai-suite-burnout'
-  | 'ai-suite-quality'
-  | 'ai-suite-commit'
-  | 'ai-suite-pr-velocity'
-  | 'ai-suite-pr'
-  | 'integrations'
-  | 'activity'
-  | 'privacy';
 
-export default function App() {
-  const [user, setUser] = useState<UserProfile>(authAndIntegrationsService.getUser());
-  const [currentView, setCurrentView] = useState<AppView>('landing');
-  const [isInsightsOpen, setIsInsightsOpen] = useState(false);
-  const [isDatasetOpen, setIsDatasetOpen] = useState(false);
-  const [overview, setOverview] = useState<OverviewMetrics | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
+const RELEASE = 'https://github.com/yuvasree023/DEV_PULSE/releases';
+const COLAB = 'https://github.com/yuvasree023/DEV_PULSE/blob/main/docs/colab-connector.md';
+const duration = (s:number) => `${Math.floor(s/3600)}h ${Math.floor(s%3600/60)}m`;
+const routes:Record<string,string> = {activity:'/dashboard',repositories:'/repositories',connections:'/settings/integrations',privacy:'/privacy',lab:'/demo',overview:'/overview','ai-tools':'/ai-tools','ai-impact':'/ai-impact','ml-insights':'/ml-insights'};
+const resolve = () => Object.keys(routes).find(k=>routes[k]===location.pathname) || 'activity';
+const nav = [{id:'activity',name:'Your workspace',icon:Activity},{id:'repositories',name:'Repositories',icon:FolderGit2},{id:'connections',name:'Connections',icon:Plug},{id:'privacy',name:'Privacy & data',icon:ShieldCheck}];
 
-  // Cold start state for Render/Railway backend
-  const [serverState, setServerState] = useState<'checking' | 'waking' | 'ready' | 'error'>('checking');
-  const [wakeStatus, setWakeStatus] = useState<string>('Connecting to DevPulse backend...');
-  const [serverError, setServerError] = useState<string | null>(null);
-
-  // Subscribe to auth state updates
-  useEffect(() => {
-    const unsubscribe = authAndIntegrationsService.subscribe(() => {
-      const u = authAndIntegrationsService.getUser();
-      setUser(u);
-    });
-    return unsubscribe;
-  }, []);
-
-  // Map browser URL pathname to view & enforce route guards
-  const syncRouteFromUrl = () => {
-    if (typeof window === 'undefined') return;
-    const path = window.location.pathname.toLowerCase();
-    const isAuth = authAndIntegrationsService.getUser().isAuthenticated;
-    const isOnboardingDone = authAndIntegrationsService.isOnboardingCompleted();
-
-    // Step 1: Unauthenticated visitors must only see landing page
-    if (!isAuth) {
-      setCurrentView('landing');
-      if (path !== '/' && path !== '/login' && path !== '/signup') {
-        window.history.replaceState(null, '', '/login');
-      }
-      return;
-    }
-
-    // Step 2: Authenticated but hasn't completed onboarding
-    if (!isOnboardingDone) {
-      if (path === '/' || path === '/login' || path === '/onboarding') {
-        setCurrentView('onboarding');
-        window.history.replaceState(null, '', '/onboarding');
-        return;
-      }
-    }
-
-    // Step 3: Route mapping for authenticated users
-    if (path === '/' || path === '/login' || path === '/dashboard') {
-      setCurrentView('activity');
-      window.history.replaceState(null, '', '/dashboard');
-    } else if (path === '/demo') {
-      setCurrentView('dashboard');
-    } else if (path === '/onboarding') {
-      setCurrentView('onboarding');
-    } else if (path === '/overview') {
-      setCurrentView('overview');
-    } else if (path === '/settings/integrations' || path === '/integrations') {
-      setCurrentView('integrations');
-    } else if (path.includes('burnout')) {
-      setCurrentView('ai-suite-burnout');
-    } else if (path.includes('quality')) {
-      setCurrentView('ai-suite-quality');
-    } else if (path.includes('commit')) {
-      setCurrentView('ai-suite-commit');
-    } else if (path.includes('pr-velocity') || path.includes('velocity')) {
-      setCurrentView('ai-suite-pr-velocity');
-    } else if (path.includes('ai-suite')) {
-      setCurrentView('ai-suite-burnout');
-    } else if (path === '/ai-tools') {
-      setCurrentView('ai-tools');
-    } else if (path === '/ai-impact') {
-      setCurrentView('ai-impact');
-    } else if (path === '/ml-insights') {
-      setCurrentView('ml-insights');
-    } else if (path === '/repositories') {
-      setCurrentView('repositories');
-    } else if (path === '/activity') {
-      setCurrentView('activity');
-    } else if (path === '/privacy') {
-      setCurrentView('privacy');
-    } else {
-      setCurrentView('activity');
-      window.history.replaceState(null, '', '/dashboard');
-    }
-  };
-
-  useEffect(() => {
-    syncRouteFromUrl();
-    window.addEventListener('popstate', syncRouteFromUrl);
-    return () => window.removeEventListener('popstate', syncRouteFromUrl);
-  }, [user.isAuthenticated]);
-
-  const navigateTo = (view: AppView) => {
-    setCurrentView(view);
-    if (typeof window === 'undefined') return;
-
-    // Update browser URL
-    let newPath = '/dashboard';
-    if (view === 'landing') newPath = '/login';
-    else if (view === 'onboarding') newPath = '/onboarding';
-    else if (view === 'dashboard' || view === 'realtime-engine') newPath = '/demo';
-    else if (view === 'overview') newPath = '/overview';
-    else if (view === 'integrations') newPath = '/settings/integrations';
-    else if (view === 'ai-suite-burnout') newPath = '/ai-suite/burnout';
-    else if (view === 'ai-suite-quality') newPath = '/ai-suite/quality';
-    else if (view === 'ai-suite-commit') newPath = '/ai-suite/commit';
-    else if (view === 'ai-suite-pr-velocity') newPath = '/ai-suite/pr-velocity';
-    else if (view === 'ai-suite-pr') newPath = '/ai-suite/pr-review';
-    else if (view === 'ai-tools') newPath = '/ai-tools';
-    else if (view === 'ai-impact') newPath = '/ai-impact';
-    else if (view === 'ml-insights') newPath = '/ml-insights';
-    else if (view === 'repositories') newPath = '/repositories';
-    else if (view === 'activity') newPath = '/activity';
-    else if (view === 'privacy') newPath = '/privacy';
-
-    window.history.pushState(null, '', newPath);
-  };
-
-  const handleAuthenticated = () => {
-    const isOnboardingDone = authAndIntegrationsService.isOnboardingCompleted();
-    if (!isOnboardingDone) {
-      navigateTo('onboarding');
-    } else {
-      navigateTo('activity');
-    }
-  };
-
-  const initServerConnection = async () => {
-    setServerState('checking');
-    setServerError(null);
-
-    try {
-      await api.checkHealth();
-      setServerState('ready');
-      fetchGlobalMetrics();
-      return;
-    } catch {
-      setServerState('waking');
-      setWakeStatus('Server appears sleeping (Render free tier). Waking up server...');
-    }
-
-    const isAwake = await api.checkServerHealthWithRetry((elapsedSec, msg) => {
-      setWakeStatus(msg);
-    }, 60000);
-
-    if (isAwake) {
-      setServerState('ready');
-      fetchGlobalMetrics();
-    } else {
-      setServerState('error');
-      setServerError(`Backend server at ${API_BASE || 'current origin'} did not respond within 60s.`);
-    }
-  };
-
-  useEffect(() => {
-    initServerConnection();
-  }, []);
-
-  const fetchGlobalMetrics = () => {
-    api.getOverview()
-      .then((data) => setOverview(data))
-      .catch((err) => console.warn('Could not fetch overview metrics:', err));
-  };
-
-  useEffect(() => {
-    if (serverState === 'ready') {
-      fetchGlobalMetrics();
-    }
-  }, [refreshKey, serverState]);
-
-  const handleDatasetUpdated = () => {
-    setRefreshKey((k) => k + 1);
-  };
-
-  const getAiTabFromView = (view: AppView): AIProductivitySuiteTab => {
-    if (view === 'ai-suite-burnout') return 'burnout-flow';
-    if (view === 'ai-suite-quality') return 'code-quality';
-    if (view === 'ai-suite-commit') return 'commit-docs';
-    if (view === 'ai-suite-pr-velocity') return 'pr-velocity';
-    if (view === 'ai-suite-pr') return 'pr-reviewer';
-    return 'burnout-flow';
-  };
-
-  const handleSelectAiTab = (tab: AIProductivitySuiteTab) => {
-    if (tab === 'burnout-flow') navigateTo('ai-suite-burnout');
-    else if (tab === 'code-quality') navigateTo('ai-suite-quality');
-    else if (tab === 'commit-docs') navigateTo('ai-suite-commit');
-    else if (tab === 'pr-velocity') navigateTo('ai-suite-pr-velocity');
-    else if (tab === 'pr-reviewer') navigateTo('ai-suite-pr');
-  };
-
-  const isAiSuite = currentView.startsWith('ai-suite');
-
-  // STEP 1: PUBLIC LANDING PAGE (Unauthenticated visitors)
-  if (!user.isAuthenticated || currentView === 'landing') {
-    return <LandingAuthPage onAuthenticated={handleAuthenticated} />;
-  }
-
-  // STEP 2: ONBOARDING & INTEGRATION SETUP SCREEN
-  if (currentView === 'onboarding') {
-    return (
-      <OnboardingFlow
-        onComplete={() => navigateTo('activity')}
-        onSkip={() => navigateTo('activity')}
-      />
-    );
-  }
-
-  // STEP 3: MAIN APP (Authenticated & Onboarded)
-  return (
-    <div className="min-h-screen bg-[#f8f9fc] text-slate-800 antialiased font-sans flex flex-col">
-      {/* Top Navigation Bar with brand, AI Suite dropdown, Live engine and user profile */}
-      <TopNav
-        activeNav={currentView}
-        onSelectNav={(view) => navigateTo(view as AppView)}
-        onOpenDatasetModal={() => setIsDatasetOpen(true)}
-        onOpenAiInsights={() => setIsInsightsOpen(true)}
-        totalPrs={overview?.total_prs}
-      />
-
-      {/* Main Workspace: Left Sidebar + Main Content Canvas */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar with AI Productivity Suite (ML-Powered) & Integrations */}
-        <LeftSidebar
-          currentView={currentView}
-          onSelectView={(view) => navigateTo(view as AppView)}
-          onOpenDatasetModal={() => setIsDatasetOpen(true)}
-          totalPrs={overview?.total_prs}
-        />
-
-        {/* Scrollable Main Content Area */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">
-          <div className="max-w-[1400px] mx-auto" key={refreshKey}>
-            {/* Cold start waking state banner */}
-            {serverState === 'waking' && (
-              <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 border border-purple-200 text-purple-900 flex items-center justify-between shadow-xs animate-pulse">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0">
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-purple-950 flex items-center gap-1.5">
-                      <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                      Waking up the backend server...
-                    </h4>
-                    <p className="text-[11px] text-purple-700 mt-0.5">
-                      {wakeStatus}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-[11px] font-mono text-purple-600 bg-purple-100/80 px-2.5 py-1 rounded-lg">
-                  Render Free Tier Cold Start
-                </div>
-              </div>
-            )}
-
-            {/* Error state if server failed to wake within 60s */}
-            {serverState === 'error' && (
-              <ErrorCard
-                title="Backend Server Unreachable"
-                error={serverError}
-                onRetry={initServerConnection}
-                isRetrying={serverState === 'checking' || serverState === 'waking'}
-              />
-            )}
-
-            {/* Step 3: Real-Time Productivity Dashboard */}
-            {(currentView === 'dashboard' || currentView === 'realtime-engine') && (
-              <RealTimeDashboardView />
-            )}
-
-            {currentView === 'overview' && (
-              <OverviewView
-                onNavigateToTools={() => navigateTo('ai-tools')}
-                onNavigateToImpact={() => navigateTo('ai-impact')}
-                onOpenAiInsights={() => setIsInsightsOpen(true)}
-              />
-            )}
-
-            {currentView === 'ai-tools' && (
-              <AIToolsView />
-            )}
-
-            {currentView === 'ai-impact' && (
-              <AIImpactView />
-            )}
-
-            {currentView === 'ml-insights' && (
-              <MLInsightsView onOpenAiInsights={() => setIsInsightsOpen(true)} />
-            )}
-
-            {currentView === 'repositories' && (
-              <RepositoriesView />
-            )}
-
-            {currentView === 'activity' && <ActivityView />}
-            {currentView === 'privacy' && <PrivacyView />}
-            {currentView === 'integrations' && (
-              <IntegrationsView />
-            )}
-
-            {/* Dedicated AI Productivity Suite Views with Yuvasree ML Attribution */}
-            {isAiSuite && (
-              <div>
-                <AIProductivitySuiteHeader
-                  activeTab={getAiTabFromView(currentView)}
-                  onSelectTab={handleSelectAiTab}
-                />
-
-                {currentView === 'ai-suite-burnout' && (
-                  <BurnoutFlowPredictorView />
-                )}
-
-                {currentView === 'ai-suite-quality' && (
-                  <CodeQualityRefactorView />
-                )}
-
-                {currentView === 'ai-suite-commit' && (
-                  <CommitDocsGeneratorView />
-                )}
-
-                {currentView === 'ai-suite-pr-velocity' && (
-                  <PRVelocityLikelihoodView />
-                )}
-
-                {currentView === 'ai-suite-pr' && (
-                  <AutomatedPRReviewerView />
-                )}
-              </div>
-            )}
-          </div>
-        </main>
-      </div>
-
-      {/* Secondary Dataset Evaluator Modal */}
-      <DatasetModal
-        isOpen={isDatasetOpen}
-        onClose={() => setIsDatasetOpen(false)}
-        onDatasetUpdated={handleDatasetUpdated}
-      />
-
-      {/* Secondary Grounded Gemini Explanation Modal */}
-      <AIInsightsModal
-        isOpen={isInsightsOpen}
-        onClose={() => setIsInsightsOpen(false)}
-      />
-    </div>
-  );
-      }
+let callbackStarted = false;
+export default function App(){
+ const [user,setUser]=useState(auth.getUser());
+ const [view,setView]=useState(resolve());
+ const [menu,setMenu]=useState(false);
+ const [busy,setBusy]=useState(false);
+ const [error,setError]=useState('');
+ const [summary,setSummary]=useState<any>(null);
+ const [sessions,setSessions]=useState<any[]>([]);
+ const [repos,setRepos]=useState<any[]>([]);
+ const [repoLoaded,setRepoLoaded]=useState(false);
+ const [query,setQuery]=useState('');
+ const [health,setHealth]=useState('Checking service');
+ const [notice,setNotice]=useState('');
+ const [me,setMe]=useState<any>(null);
+ const [lab,setLab]=useState('simulator');
+ const go=(v:string)=>{setView(v);setMenu(false);setError('');history.pushState(null,'',routes[v]||'/dashboard');window.scrollTo(0,0);};
+ useEffect(()=>{const unsub=auth.subscribe(()=>setUser(auth.getUser()));const pop=()=>setView(resolve());window.addEventListener('popstate',pop);return()=>{unsub();window.removeEventListener('popstate',pop)}},[]);
+ useEffect(()=>{api.checkHealth().then((h:any)=>setHealth(h.db_ready && h.persistence_backend==='postgresql'?'Postgres ready':'Persistence not ready')).catch(()=>setHealth('Service waking or unavailable'));},[]);
+ useEffect(()=>{const code=new URLSearchParams(location.search).get('code');if(!code || callbackStarted)return;callbackStarted=true;setBusy(true);api.auth.githubCallback(code).then(res=>{localStorage.setItem('devpulse_jwt_token',res.access_token);auth.login(res.user.name||res.user.username,res.user.email||'', 'github','Developer','');auth.setOnboardingCompleted(true);history.replaceState(null,'','/dashboard');setView('activity')}).catch(()=>setError('GitHub sign-in could not finish. Please try again.')).finally(()=>setBusy(false));},[]);
+ const load=async()=>{setBusy(true);setError('');try{const [s,r,m]=await Promise.all([api.getActivitySummary(),api.getActivitySessions(50),api.auth.getMe()]);setSummary(s);setSessions(r);setMe(m.user)}catch{setError('Your data could not load. The free backend may be waking up. Try refresh; sign in again if your session expired.')}finally{setBusy(false)}};
+ useEffect(()=>{if(user.isAuthenticated)load()},[user.isAuthenticated]);
+ const loadRepos=async()=>{setBusy(true);setError('');try{const r=await api.github.listUserRepositories();setRepos(r.repositories||[]);setRepoLoaded(true)}catch{setError('GitHub repositories could not load. Please refresh or sign in again.')}finally{setBusy(false)}};
+ useEffect(()=>{if(user.isAuthenticated && (view==='repositories'||view==='connections') && !repoLoaded)loadRepos()},[view,user.isAuthenticated]);
+ const signIn=async()=>{setBusy(true);setError('');try{const r=await api.auth.getGithubOAuthUrl();if(!r.oauth_configured||!r.url)throw Error();location.href=r.url}catch{setError('GitHub sign-in is temporarily unavailable. Please try again.');setBusy(false)}};
+ const copySession=async()=>{const token=localStorage.getItem('devpulse_jwt_token');if(!token){setNotice('Sign in again to get an editor session.');return}try{await navigator.clipboard.writeText(token);setNotice('Session copied. Paste only into the DevPulse editor sign-in prompt or Colab Secrets. It gives access to your account; never share it.')}catch{setNotice('Clipboard access was blocked. Allow clipboard access in your browser, then try again.')}};
+ const logout=()=>{localStorage.removeItem('devpulse_jwt_token');auth.logout();setSummary(null);setSessions([]);setRepos([]);setMe(null);setRepoLoaded(false);history.replaceState(null,'','/login')};
+ const label=nav.find(n=>n.id===view)?.name || 'Research lab';
+ const tools=[{name:'VS Code',icon:Code2,tag:sessions.some(s=>/code/i.test(s.editor))?'Session received':'Install on your computer',text:'Measure focused editing time, with idle detection and a pause control. Project name, language and duration only.'},{name:'Google Colab',icon:Notebook,tag:sessions.some(s=>s.editor==='colab')?'Session received':'Manual notebook logger',text:'Log a notebook interval explicitly. Runtime duration is not focused coding time; no cell contents are sent.'},{name:'Antigravity',icon:Layers,tag:'No dedicated telemetry',text:'Google offers Antigravity inside VS Code. DevPulse can track editor time alongside it, but cannot attribute time to an agent or measure agent runs.'}];
+ return <div className="dp-app"><style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');`}</style>
+ {!user.isAuthenticated?<div className="dp-public"><header className="dp-public-nav"><Brand/><span className="dp-mono">DEVELOPER INTELLIGENCE / 01</span><a href="https://github.com/yuvasree023/DEV_PULSE" target="_blank" rel="noreferrer">View source <ArrowUpRight size={16}/></a></header><main className="dp-landing"><section><div className="dp-eyebrow"><i/> YOUR WORK, IN FOCUS</div><h1>A clearer picture<br/>of how you <em>build.</em></h1><p className="dp-intro">One quiet workspace for your public GitHub activity and private coding sessions. Connect what you use. See only what is measured.</p><button className="dp-primary" onClick={signIn} disabled={busy}><Github size={20}/>{busy?'Connecting…':'Continue with GitHub'}<ArrowRight size={18}/></button>{error&&<p role="alert" className="dp-error">{error}</p>}<p className="dp-fine"><ShieldCheck size={15}/> Read-only public GitHub access. No card. No paid APIs.</p></section><section className="dp-preview" aria-label="How DevPulse works, not personal metrics"><div className="dp-preview-bar"><span className="dp-mono">THE SIGNAL, WITHOUT THE NOISE</span><Activity size={20}/></div><div className="dp-preview-art"><div className="dp-orbit o1"/><div className="dp-orbit o2"/><div className="dp-orbit o3"/><div className="dp-orbit-core"><Code2 size={42}/></div><span className="dp-float f1"><Github size={16}/> Public repositories</span><span className="dp-float f2"><Clock3 size={16}/> Focused sessions</span><span className="dp-float f3"><ShieldCheck size={16}/> Your data</span></div><h2>Built around your workflow.</h2><p>Real sources stay separate from sample analytics. No invented scores. No pretend connections.</p><div className="dp-preview-foot"><span>VS Code</span><span>GitHub</span><span>Colab</span></div></section></main><footer className="dp-public-footer">DevPulse / Developer productivity workspace<span>Private activity. Public source.</span></footer></div>:
+ <><aside className={`dp-sidebar ${menu?'is-open':''}`}><Brand/><button className="dp-close" aria-label="Close menu" onClick={()=>setMenu(false)}><X/></button><div className="dp-space-label">PERSONAL WORKSPACE</div><nav>{nav.map(n=><button key={n.id} className={view===n.id?'active':''} onClick={()=>go(n.id)}><n.icon size={18}/>{n.name}{view===n.id&&<ChevronRight className="dp-nav-arrow" size={15}/>}</button>)}</nav><div className="dp-space-label">EXPLORE</div><nav><button className={view==='lab'||['overview','ai-tools','ai-impact','ml-insights'].includes(view)?'active':''} onClick={()=>go('lab')}><FlaskConical size={18}/>Research lab<span className="dp-mini-tag">DEMO</span></button></nav><div className="dp-sidebar-bottom"><div className="dp-privacy-note"><ShieldCheck size={21}/><strong>Less data. More clarity.</strong><p>No code, file paths or keystrokes are sent.</p></div><div className="dp-user"><div className="dp-avatar">{user.name[0]}</div><div><strong>{user.name}</strong><small>Personal workspace</small></div><button onClick={logout} aria-label="Sign out"><LogOut size={17}/></button></div></div></aside>{menu&&<button className="dp-scrim" onClick={()=>setMenu(false)} aria-label="Close navigation"/>}<div className="dp-workspace"><header className="dp-topbar"><div><button className="dp-menu" onClick={()=>setMenu(true)} aria-label="Open menu"><Menu/></button><span className="dp-top-title">Workspace <ChevronRight size={14}/> <strong>{label}</strong></span></div><span className="dp-service"><i className={health==='Postgres ready'?'ready':''}/>{health}</span></header><main className="dp-content">
+ {error&&<div className="dp-error" role="alert">{error}</div>}
+ {view==='activity'&&<><div className="dp-page-heading"><div><span className="dp-eyebrow">YOUR DEVELOPER WORKSPACE</span><h1>Make room for <em>focus.</em></h1><p>Your coding activity, with the context that matters.</p></div><button className="dp-secondary" onClick={load} disabled={busy}><RefreshCw size={16} className={busy?'animate-spin':''}/>Refresh</button></div><div className="dp-metrics">{[{label:'Recorded time',value:summary?duration(summary.total_seconds):'—',note:'Editor focus + notebook intervals',icon:Clock3},{label:'Projects',value:summary?.by_project.length??'—',note:'From reported coding sessions',icon:FolderGit2},{label:'Languages',value:summary?.by_language.length??'—',note:'From your editor metadata',icon:Code2}].map(m=><section className="dp-metric" key={m.label}><div><span>{m.label}</span><m.icon size={18}/></div><strong>{m.value}</strong><small>{m.note}</small></section>)}</div><div className="dp-main-grid"><section className="dp-panel"><div className="dp-panel-title"><div><span className="dp-eyebrow">THE BIG PICTURE</span><h2>Your activity</h2></div><span className="dp-badge">Recorded sessions</span></div>{sessions.length===0?<div className="dp-empty"><div className="dp-empty-icon"><Activity size={30}/></div><h3>Your next session starts here.</h3><p>{busy?'Loading your recorded activity…':'No sessions have been received yet. Add the editor extension or log a Colab interval to begin. Empty is honest, not a score of zero.'}</p><button className="dp-primary" onClick={()=>go('connections')}>Set up a connection<ArrowRight size={16}/></button></div>:<div className="dp-session-list">{sessions.map((s,i)=><div className="dp-session" key={i}><Code2 size={19}/><div><strong>{s.project}</strong><span>{s.language||'Unknown language'} · {s.editor}</span><small>{new Date(s.started_at).toLocaleString()}</small></div><b>{duration(s.duration_seconds)}</b></div>)}</div>}</section><section className="dp-panel dp-start-panel"><span className="dp-eyebrow">START WITH THE SOURCE</span><h2>A connected workflow.</h2><p>Each source tells a different part of the story.</p>{[{n:'01',title:'Your public GitHub',text:'Repositories and public development activity.',icon:Github},{n:'02',title:'Your editor sessions',text:'Focused intervals, not lines of code.',icon:Code2},{n:'03',title:'Your notebook time',text:'Explicit, manual session logging.',icon:Notebook}].map(s=><button className="dp-source-row" key={s.n} onClick={()=>go('connections')}><span className="dp-mono">{s.n}</span><div><strong>{s.title}</strong><small>{s.text}</small></div><ArrowUpRight size={16}/></button>)}<div className="dp-neutral-note"><ShieldCheck size={17}/><span>Only your account can access your coding sessions.</span></div></section></div>{summary?.total_seconds>0&&<div className="dp-main-grid">{[{title:'Languages',rows:summary.by_language,key:'language'},{title:'Projects',rows:summary.by_project,key:'project'}].map(group=><section className="dp-panel" key={group.title}><h2>{group.title}</h2>{group.rows.map((r:any)=><div className="dp-breakdown" key={r[group.key]}><span>{r[group.key]}</span><b>{duration(r.seconds)}</b><progress max={summary.total_seconds} value={r.seconds}/></div>)}</section>)}</div>}</>}
+ {view==='repositories'&&<><PageTitle kicker="PUBLIC GITHUB DATA" title="Built in the open." text="Your public repositories, fetched from GitHub. Private repositories are not requested."/><div className="dp-repo-toolbar"><label><FolderGit2 size={18}/><input aria-label="Search repositories" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Find a repository…"/></label><button className="dp-secondary" onClick={loadRepos} disabled={busy}><RefreshCw size={16}/>Refresh GitHub</button></div><div className="dp-repo-grid">{repos.filter(r=>(r.full_name||r.name||'').toLowerCase().includes(query.toLowerCase())).map(r=><article className="dp-panel dp-repo" key={r.id}><FolderGit2 size={23}/><span className="dp-badge">Public</span><h2>{r.name}</h2><p>{r.description||'No description provided.'}</p><div><span>{r.language||'No language specified'}</span>{r.html_url&&<a href={r.html_url} target="_blank" rel="noreferrer">Open repository<ArrowUpRight size={15}/></a>}</div></article>)}</div>{!repos.length&&<div className="dp-panel dp-empty"><Github size={32}/><h3>{busy?'Fetching your public repositories…':'No repositories loaded'}</h3><p>{me?.is_demo?'Demo accounts have no GitHub connection. Sign out and continue with GitHub.':'Refresh to check your public GitHub repositories. No sample repositories are substituted.'}</p></div>}</>}
+ {view==='connections'&&<><PageTitle kicker="YOUR TOOLS, YOUR CHOICE" title="Connect the dots." text="A small set of useful connections. Every status is based on a real response, not a saved toggle."/><section className="dp-panel dp-github-connect"><div className="dp-tool-icon"><Github size={26}/></div><div><h2>GitHub</h2><p>{repoLoaded?`${repos.length} public repositories returned by GitHub.`:'Refresh to verify public repository access.'} Public-only read access. No GitHub writes.</p></div><button className="dp-secondary" onClick={loadRepos} disabled={busy}><RefreshCw size={16}/>{repoLoaded?'Recheck':'Verify access'}</button></section><div className="dp-connections-grid">{tools.map((t,i)=><section className="dp-panel dp-tool" key={t.name}><div className="dp-tool-top"><div className="dp-tool-icon"><t.icon size={25}/></div><span className="dp-badge">{t.tag}</span></div><h2>{t.name}</h2><p>{t.text}</p>{i===0?<><ol><li>Download the latest DevPulse .vsix release.</li><li>In VS Code: Extensions → menu → Install from VSIX.</li><li>Run "DevPulse: Connect Dashboard Session", then paste your copied session into its password prompt.</li><li>Code in a project, then run "DevPulse: Send Activity Now". Refresh your workspace to verify receipt.</li></ol><a className="dp-secondary" href={RELEASE} target="_blank" rel="noreferrer"><Download size={16}/>Get the extension<ArrowUpRight size={15}/></a></>:i===1?<><ol><li>Copy your session below into Colab Secrets as DEVPULSE_TOKEN.</li><li>Use the notebook logger in the guide.</li><li>Call start, then stop explicitly. Abrupt runtime loss cannot be logged reliably.</li></ol><a className="dp-secondary" href={COLAB} target="_blank" rel="noreferrer">Open notebook guide<ArrowUpRight size={15}/></a></>:<><div className="dp-neutral-note">VS Code hosting Antigravity and the standalone Antigravity IDE are different setups. Standalone compatibility has not been tested.</div><a className="dp-text-link" href="https://antigravity.google/docs/ide/extensions/vscode/" target="_blank" rel="noreferrer">Official VS Code setup<ArrowUpRight size={15}/></a></>}</section>)}</div><section className="dp-panel dp-session-connect"><ShieldCheck size={28}/><div><h2>One account. A protected session.</h2><p>Copy your current DevPulse session for the extension or Colab Secrets. This is not a GitHub PAT. It expires, gives access to your account, and must never be put in source code, notebooks or chat.</p><button className="dp-primary" onClick={copySession}><Copy size={16}/>Copy my dashboard session</button>{notice&&<p role="status" className="dp-copy-notice">{notice}</p>}</div></section><p className="dp-fine">Installing desktop software requires your computer. No device is marked connected until a session arrives. All setup shown here uses free tools; no billing card is required.</p></>}
+ {view==='privacy'&&<PrivacyView/>}
+ {(view==='lab'||['overview','ai-tools','ai-impact','ml-insights'].includes(view))&&<><PageTitle kicker="RESEARCH LAB / SEPARATE FROM YOUR ACTIVITY" title="Explore the possibilities." text="Sample datasets and simulated activity demonstrate the analytics. They are not measurements of your work or proof that AI caused a productivity change."/><div className="dp-lab-tabs">{[{id:'simulator',name:'Simulator'},{id:'overview',name:'Dataset overview'},{id:'ai-tools',name:'Tool comparison'},{id:'ai-impact',name:'AI impact'},{id:'ml-insights',name:'ML clusters'}].map(t=><button className={lab===t.id?'active':''} key={t.id} onClick={()=>setLab(t.id)}>{t.name}</button>)}</div><div className="dp-neutral-note">Sample / demo environment. No agent execution or paid model calls are started here.</div><div className="dp-lab-content">{lab==='simulator'?<RealTimeDashboardView/>:lab==='overview'?<OverviewView onNavigateToTools={()=>setLab('ai-tools')} onNavigateToImpact={()=>setLab('ai-impact')} onOpenAiInsights={()=>setNotice('AI explanation is not configured in this free workspace.')}/>:lab==='ai-tools'?<AIToolsView/>:lab==='ai-impact'?<AIImpactView/>:<MLInsightsView onOpenAiInsights={()=>setNotice('AI explanation is not configured in this free workspace.')}/>}</div>{notice&&<p role="status">{notice}</p>}</>}
+ <footer className="dp-footer"><Brand/><span>Measured, not assumed.</span><span className="dp-mono">YOUR WORKSPACE / $0 STACK</span></footer></main></div></>}
+ </div>
+}
+function Brand(){return <div className="dp-brand"><span><Activity size={21}/></span><b>devpulse<span className="dp-brand-dot">.</span></b></div>}
+function PageTitle({kicker,title,text}:{kicker:string,title:string,text:string}){return <div className="dp-page-heading"><div><span className="dp-eyebrow">{kicker}</span><h1>{title}</h1><p>{text}</p></div></div>}
