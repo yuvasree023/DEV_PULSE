@@ -20,8 +20,10 @@ try:
 except ImportError:
     jwt = None
 
-ENCRYPTION_SECRET = os.getenv("ENCRYPTION_SECRET_KEY", "devpulse-super-secret-render-key-2026")
-JWT_SECRET = os.getenv("JWT_SECRET", "devpulse-super-jwt-secret-key-render-2026")
+ENCRYPTION_SECRET = os.getenv("ENCRYPTION_SECRET_KEY", "")
+JWT_SECRET = os.getenv("JWT_SECRET", "")
+if os.getenv("ENVIRONMENT") == "production" and (not ENCRYPTION_SECRET or not JWT_SECRET):
+    raise RuntimeError("Private signing and encryption keys must be configured")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", str(60 * 24 * 7)))
 
@@ -46,10 +48,14 @@ def decrypt_token(cipher_token: str) -> str:
     try:
         if cipher_token.startswith("enc_v2:"):
             key = base64.urlsafe_b64encode(_derive_key(ENCRYPTION_SECRET))
-            return Fernet(key).decrypt(cipher_token[7:].encode()).decode()
+            try:
+                return Fernet(key).decrypt(cipher_token[7:].encode()).decode()
+            except InvalidToken:
+                legacy_key = base64.urlsafe_b64encode(_derive_key("devpulse-super-secret-render-key-2026"))
+                return Fernet(legacy_key).decrypt(cipher_token[7:].encode()).decode()
         if cipher_token.startswith("enc_v1:"):
             encrypted = base64.urlsafe_b64decode(cipher_token[7:].encode())
-            key = _derive_key(ENCRYPTION_SECRET)
+            key = _derive_key("devpulse-super-secret-render-key-2026")
             return bytes(b ^ key[i % len(key)] for i, b in enumerate(encrypted)).decode()
         return cipher_token
     except Exception:
