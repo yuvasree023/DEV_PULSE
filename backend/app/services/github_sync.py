@@ -45,33 +45,31 @@ def detect_ai_agent(text_content: Optional[str]) -> Optional[str]:
     return None
 
 
-async def get_github_user_repos(access_token: str) -> List[Dict[str, Any]]:
-    """
-    Fetches the authenticated user's accessible GitHub repositories.
-    """
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Accept": "application/vnd.github.v3+json",
-        "User-Agent": "DevPulse-Analytics/2.0",
-    }
-    repos = []
-    page = 1
+async def get_github_user_repos(access_token: str, username: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Fetch only public repositories. Never return success for an upstream failure."""
     async with httpx.AsyncClient(timeout=20.0) as client:
-        while page <= 3:  # Fetch up to 300 repositories
-            url = f"https://api.github.com/user/repos?per_page=100&page={page}&sort=updated&affiliation=owner,collaborator,organization_member"
-            resp = await client.get(url, headers=headers)
-            if resp.status_code != 200:
-                logger.error(f"Failed to fetch repositories (status {resp.status_code}): {resp.text}")
-                break
-            batch = resp.json()
-            if not batch or not isinstance(batch, list):
-                break
-            repos.extend(batch)
+        if not username:
+            profile = await client.get("https://api.github.com/user", headers={
+                "Authorization": f"Bearer {access_token}", "User-Agent": "DevPulse-Analytics/2.0"})
+            if profile.status_code != 200:
+                raise RuntimeError(f"GitHub profile verification failed ({profile.status_code})")
+            username = profile.json().get("login")
+        if not username or not all(c.isalnum() or c == "-" for c in username):
+            raise RuntimeError("Invalid GitHub username")
+        repos = []
+        for page in range(1, 4):
+            response = await client.get(f"https://api.github.com/users/{username}/repos",
+                params={"per_page": 100, "page": page, "sort": "updated", "type": "owner"},
+                headers={"Accept": "application/vnd.github+json", "User-Agent": "DevPulse-Analytics/2.0"})
+            if response.status_code != 200:
+                raise RuntimeError(f"Public GitHub repository request failed ({response.status_code})")
+            batch = response.json()
+            if not isinstance(batch, list):
+                raise RuntimeError("Unexpected GitHub repository response")
+            repos.extend(r for r in batch if not r.get("private", True))
             if len(batch) < 100:
                 break
-            page += 1
-
-    return repos
+        return repos
 
 
 async def sync_repository_data(
