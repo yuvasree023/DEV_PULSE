@@ -60,7 +60,7 @@ async def get_github_user_repos(access_token: str, username: Optional[str] = Non
         for page in range(1, 4):
             response = await client.get(f"https://api.github.com/users/{username}/repos",
                 params={"per_page": 100, "page": page, "sort": "updated", "type": "owner"},
-                headers={"Accept": "application/vnd.github+json", "User-Agent": "DevPulse-Analytics/2.0"})
+                headers={"Accept": "application/vnd.github+json", "User-Agent": "DevPulse-Analytics/2.0", "Authorization": f"Bearer {access_token}"})
             if response.status_code != 200:
                 raise RuntimeError(f"Public GitHub repository request failed ({response.status_code})")
             batch = response.json()
