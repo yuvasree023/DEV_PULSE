@@ -87,18 +87,7 @@ async def lifespan(app: FastAPI):
     try:
         Base.metadata.create_all(bind=engine)
         logger.info("Database schemas verified.")
-        # One-time migration of existing provider credentials to authenticated encryption.
-        from app.database import SessionLocal
-        from app.models.user import UserToken
-        from app.services.security import decrypt_token, encrypt_token
-        with SessionLocal() as db:
-            for row in db.query(UserToken).all():
-                plain = decrypt_token(row.encrypted_access_token)
-                if not plain:
-                    raise RuntimeError("Provider credential migration failed; sign-in needs repair")
-                row.encrypted_access_token = encrypt_token(plain)
-            db.commit()
-        logger.info("Provider credential migration complete.")
+
     except Exception as exc:
         logger.error(f"Error during schema validation: {exc}")
         
