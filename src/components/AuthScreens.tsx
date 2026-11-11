@@ -123,3 +123,49 @@ export function ResetPasswordView({ busy, error, notice, onSubmit, onDone }: Res
     </div>
   );
 }
+
+interface EmailPasswordPanelProps {
+  email: string;
+  hasPassword: boolean;
+  busy: boolean;
+  error: string;
+  notice: string;
+  onSubmit: (values: { email: string; password: string; currentPassword?: string }) => void;
+}
+
+export function EmailPasswordPanel({ email, hasPassword, busy, error, notice, onSubmit }: EmailPasswordPanelProps) {
+  const [e, setE] = useState(email);
+  const [p, setP] = useState('');
+  const [cur, setCur] = useState('');
+  return (
+    <section className="dp-panel dp-account-panel">
+      <div className="dp-panel-title">
+        <div>
+          <span className="dp-eyebrow">SIGN IN YOUR WAY</span>
+          <h2>Email &amp; password</h2>
+        </div>
+        <span className="dp-badge">{hasPassword ? 'Set up' : 'Not set up'}</span>
+      </div>
+      <p className="dp-account-text">
+        {hasPassword
+          ? 'Your account already has email sign-in. Change the email or password here.'
+          : 'Add an email and password to this account so you can also log in without GitHub. Your GitHub login and all your data stay exactly as they are.'}
+      </p>
+      {error && <p role="alert" className="dp-error">{error}</p>}
+      {notice && <p role="status" className="dp-copy-notice">{notice}</p>}
+      <form className="dp-account-form" onSubmit={(ev) => { ev.preventDefault(); onSubmit({ email: e, password: p, currentPassword: cur || undefined }); }}>
+        <label htmlFor="dp-acct-email">EMAIL</label>
+        <input id="dp-acct-email" type="email" required autoComplete="email" value={e} onChange={(ev) => setE(ev.target.value)} placeholder="you@example.com" />
+        <label htmlFor="dp-acct-pass">{hasPassword ? 'NEW PASSWORD' : 'PASSWORD'}</label>
+        <input id="dp-acct-pass" type="password" required minLength={8} autoComplete="new-password" value={p} onChange={(ev) => setP(ev.target.value)} placeholder="At least 8 characters" />
+        {hasPassword && (
+          <>
+            <label htmlFor="dp-acct-cur">CURRENT PASSWORD</label>
+            <input id="dp-acct-cur" type="password" required autoComplete="current-password" value={cur} onChange={(ev) => setCur(ev.target.value)} placeholder="Your current password" />
+          </>
+        )}
+        <button className="dp-primary" type="submit" disabled={busy}>{busy ? 'Saving…' : hasPassword ? 'Update email sign-in' : 'Add email sign-in'}</button>
+      </form>
+    </section>
+  );
+}
