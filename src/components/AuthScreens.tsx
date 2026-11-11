@@ -127,13 +127,15 @@ export function ResetPasswordView({ busy, error, notice, onSubmit, onDone }: Res
 interface EmailPasswordPanelProps {
   email: string;
   hasPassword: boolean;
+  emailVerified: boolean;
   busy: boolean;
   error: string;
   notice: string;
   onSubmit: (values: { email: string; password: string; currentPassword?: string }) => void;
+  onResendVerify: () => void;
 }
 
-export function EmailPasswordPanel({ email, hasPassword, busy, error, notice, onSubmit }: EmailPasswordPanelProps) {
+export function EmailPasswordPanel({ email, hasPassword, emailVerified, busy, error, notice, onSubmit, onResendVerify }: EmailPasswordPanelProps) {
   const [e, setE] = useState(email);
   const [p, setP] = useState('');
   const [cur, setCur] = useState('');
@@ -144,13 +146,19 @@ export function EmailPasswordPanel({ email, hasPassword, busy, error, notice, on
           <span className="dp-eyebrow">SIGN IN YOUR WAY</span>
           <h2>Email &amp; password</h2>
         </div>
-        <span className="dp-badge">{hasPassword ? 'Set up' : 'Not set up'}</span>
+        <span className="dp-badge">{hasPassword ? (emailVerified ? 'Set up' : 'Set up - email unverified') : 'Not set up'}</span>
       </div>
       <p className="dp-account-text">
         {hasPassword
           ? 'Your account already has email sign-in. Change the email or password here.'
           : 'Add an email and password to this account so you can also log in without GitHub. Your GitHub login and all your data stay exactly as they are.'}
       </p>
+      {hasPassword && !emailVerified && (
+        <p className="dp-neutral-note">
+          This email is not verified yet. Until it is, password-reset links cannot be sent to it - your other sign-in methods keep working. Verification emails are not set up yet; when they are, you can confirm the address here.
+          <button type="button" className="dp-text-link" onClick={onResendVerify} disabled={busy}>Send verification email</button>
+        </p>
+      )}
       {error && <p role="alert" className="dp-error">{error}</p>}
       {notice && <p role="status" className="dp-copy-notice">{notice}</p>}
       <form className="dp-account-form" onSubmit={(ev) => { ev.preventDefault(); onSubmit({ email: e, password: p, currentPassword: cur || undefined }); }}>
