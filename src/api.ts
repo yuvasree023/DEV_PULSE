@@ -378,8 +378,15 @@ export const api = {
         method: 'POST'
       }),
 
-    getMe: (): Promise<{ authenticated: boolean; user: any; github_connected?: boolean }> =>
-      fetchJson<{ authenticated: boolean; user: any; github_connected?: boolean }>('/api/auth/me'),
+    getMe: (): Promise<{ authenticated: boolean; user: any; github_connected?: boolean; has_password?: boolean }> =>
+      fetchJson<{ authenticated: boolean; user: any; github_connected?: boolean; has_password?: boolean }>('/api/auth/me'),
+
+    addEmailPassword: (email: string, password: string, currentPassword?: string): Promise<{ success: boolean; user: any }> =>
+      fetchJson<{ success: boolean; user: any }>('/api/auth/email-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, current_password: currentPassword || null })
+      }),
 
     signup: (name: string, email: string, password: string): Promise<{ access_token: string; token_type: string; user: any }> =>
       fetchJson<{ access_token: string; token_type: string; user: any }>('/api/auth/signup', {
