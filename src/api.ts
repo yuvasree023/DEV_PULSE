@@ -378,8 +378,43 @@ export const api = {
         method: 'POST'
       }),
 
-    getMe: (): Promise<{ authenticated: boolean; user: any }> =>
-      fetchJson<{ authenticated: boolean; user: any }>('/api/auth/me'),
+    getMe: (): Promise<{ authenticated: boolean; user: any; github_connected?: boolean }> =>
+      fetchJson<{ authenticated: boolean; user: any; github_connected?: boolean }>('/api/auth/me'),
+
+    signup: (name: string, email: string, password: string): Promise<{ access_token: string; token_type: string; user: any }> =>
+      fetchJson<{ access_token: string; token_type: string; user: any }>('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password })
+      }),
+
+    loginWithEmail: (email: string, password: string): Promise<{ access_token: string; token_type: string; user: any }> =>
+      fetchJson<{ access_token: string; token_type: string; user: any }>('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      }),
+
+    linkGithub: (code: string): Promise<{ linked: boolean; user: any }> =>
+      fetchJson<{ linked: boolean; user: any }>('/api/auth/github/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
+      }),
+
+    forgotPassword: (email: string): Promise<{ success: boolean; message: string }> =>
+      fetchJson<{ success: boolean; message: string }>('/api/auth/password/forgot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      }),
+
+    resetPassword: (token: string, newPassword: string): Promise<{ success: boolean; message: string }> =>
+      fetchJson<{ success: boolean; message: string }>('/api/auth/password/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, new_password: newPassword })
+      }),
 
     logout: (): Promise<{ success: boolean }> =>
       fetchJson<{ success: boolean }>('/api/auth/logout', {
