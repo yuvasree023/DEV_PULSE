@@ -10,9 +10,10 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, autoincrement=True, doc="Internal user ID")
-    github_id = Column(String(64), unique=True, nullable=False, index=True, doc="GitHub user ID")
+    github_id = Column(String(64), unique=True, nullable=True, index=True, doc="GitHub user ID (null until GitHub is connected)")
     username = Column(String(256), nullable=False, index=True, doc="GitHub login/username")
     email = Column(String(256), nullable=True, index=True, doc="User email address")
+    password_hash = Column(String(512), nullable=True, doc="PBKDF2 hash for email/password accounts")
     name = Column(String(256), nullable=True, doc="User full display name")
     avatar_url = Column(String(512), nullable=True, doc="Avatar image URL")
     bio = Column(Text, nullable=True, doc="GitHub bio")
