@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, BigInteger, Integer, String, Text, DateTime, ForeignKey, Index
+from sqlalchemy import Column, BigInteger, Integer, String, Text, DateTime, ForeignKey, Index, Boolean
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -14,6 +14,7 @@ class User(Base):
     username = Column(String(256), nullable=False, index=True, doc="GitHub login/username")
     email = Column(String(256), nullable=True, index=True, doc="User email address")
     password_hash = Column(String(512), nullable=True, doc="PBKDF2 hash for email/password accounts")
+    email_verified = Column(Boolean, nullable=False, default=False, server_default="false", doc="True when the account email was verified (GitHub-verified or via verification email)")
     name = Column(String(256), nullable=True, doc="User full display name")
     avatar_url = Column(String(512), nullable=True, doc="Avatar image URL")
     bio = Column(Text, nullable=True, doc="GitHub bio")
