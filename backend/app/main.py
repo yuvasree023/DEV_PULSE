@@ -111,11 +111,14 @@ async def lifespan(app: FastAPI):
         with engine.begin() as _conn2:
             if engine.url.get_backend_name() == "postgresql":
                 _conn2.execute(_text2("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(512)"))
+                _conn2.execute(_text2("ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE"))
                 _conn2.execute(_text2("ALTER TABLE users ALTER COLUMN github_id DROP NOT NULL"))
             else:
                 _cols2 = [r[1] for r in _conn2.execute(_text2("PRAGMA table_info(users)"))]
                 if "password_hash" not in _cols2:
                     _conn2.execute(_text2("ALTER TABLE users ADD COLUMN password_hash VARCHAR(512)"))
+                if "email_verified" not in _cols2:
+                    _conn2.execute(_text2("ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT FALSE"))
         logger.info("users email/password columns verified.")
     except Exception as exc:
         logger.warning("users password migration skipped: %s", type(exc).__name__)
