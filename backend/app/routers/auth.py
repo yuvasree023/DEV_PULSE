@@ -2,6 +2,7 @@
 GitHub OAuth, PAT authentication, and user profile management router for DEV_PULSE.
 """
 
+import hashlib
 import logging
 from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
@@ -333,8 +334,15 @@ async def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_
     # Reset links go only to verified emails: an unverified address may belong to
     # someone else, and it cannot be allowed to receive account-recovery mail.
     if user and user.password_hash and user.email_verified:
+        # Bound to the exact email and current password hash: changing either
+        # invalidates outstanding reset links.
         reset_token = create_access_token(
-            {"sub": str(user.id), "purpose": "password_reset"},
+            {
+                "sub": str(user.id),
+                "purpose": "password_reset",
+                "email": user.email,
+                "pwf": hashlib.sha256((user.password_hash or "").encode()).hexdigest()[:16],
+            },
             expires_delta=timedelta(minutes=30),
         )
         frontend = (settings.FRONTEND_URL or "").rstrip("/") or "https://devpulse-app-snowy.vercel.app"
@@ -365,7 +373,11 @@ def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db)):
     if pw_error:
         raise HTTPException(status_code=400, detail=pw_error)
     user = db.query(User).filter(User.id == int(payload["sub"])).first()
-    if not user:
+    if (
+        not user
+        or payload.get("email") != user.email
+        or payload.get("pwf") != hashlib.sha256((user.password_hash or "").encode()).hexdigest()[:16]
+    ):
         raise HTTPException(status_code=400, detail="This reset link is invalid or has expired. Request a new one.")
     user.password_hash = hash_password(req.new_password)
     user.updated_at = datetime.now(timezone.utc)
@@ -397,8 +409,10 @@ async def send_email_verification(
         raise HTTPException(status_code=400, detail="Add an email address first.")
     if user.email_verified:
         return {"success": True, "message": "This email is already verified."}
+    # Bound to the exact address being verified: a later email change
+    # invalidates outstanding verification links.
     token = create_access_token(
-        {"sub": str(user.id), "purpose": "email_verify"},
+        {"sub": str(user.id), "purpose": "email_verify", "email": user.email},
         expires_delta=timedelta(hours=24),
     )
     frontend = (settings.FRONTEND_URL or "").rstrip("/") or "https://devpulse-app-snowy.vercel.app"
@@ -424,7 +438,7 @@ def verify_email(req: VerifyEmailRequest, db: Session = Depends(get_db)):
     if not payload or payload.get("purpose") != "email_verify" or "sub" not in payload:
         raise HTTPException(status_code=400, detail="This verification link is invalid or has expired. Request a new one.")
     user = db.query(User).filter(User.id == int(payload["sub"])).first()
-    if not user:
+    if not user or payload.get("email") != user.email:
         raise HTTPException(status_code=400, detail="This verification link is invalid or has expired. Request a new one.")
     user.email_verified = True
     user.updated_at = datetime.now(timezone.utc)
