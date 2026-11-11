@@ -182,6 +182,9 @@ def upsert_user_and_token(
     bio = github_profile.get("bio")
     company = github_profile.get("company")
 
+    # GitHub account emails are verified by GitHub; noreply aliases cannot receive mail.
+    gh_email_verified = bool(email) and not email.endswith("@users.noreply.github.com")
+
     user = db.query(User).filter(User.github_id == gh_id).first()
     now = datetime.now(timezone.utc)
 
@@ -190,6 +193,7 @@ def upsert_user_and_token(
             github_id=gh_id,
             username=username,
             email=email,
+            email_verified=gh_email_verified,
             name=name,
             avatar_url=avatar_url,
             bio=bio,
@@ -202,6 +206,8 @@ def upsert_user_and_token(
     else:
         user.username = username
         user.email = email
+        if gh_email_verified:
+            user.email_verified = True
         user.name = name
         user.avatar_url = avatar_url
         user.bio = bio
@@ -290,6 +296,9 @@ def add_email_password_to_user(db: Session, user: User, email: str, password: st
     if user.password_hash:
         if not current_password or not verify_password(current_password, user.password_hash):
             raise HTTPException(status_code=403, detail="Your current password is required to change email or password.")
+    if user.email != email_norm:
+        # A newly set or changed email is unverified until confirmed by email.
+        user.email_verified = False
     user.email = email_norm
     user.password_hash = hash_password(password)
     user.updated_at = datetime.now(timezone.utc)
@@ -315,6 +324,7 @@ def create_email_user(db: Session, name: str, email: str, password: str) -> User
         bio="",
         company="",
         password_hash=hash_password(password),
+        email_verified=False,
         created_at=now,
         updated_at=now,
     )
