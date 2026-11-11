@@ -27,7 +27,7 @@ from app.services.auth import (
     link_github_to_user,
 )
 from app.services.passwords import validate_password_strength, hash_password
-from app.services.emailer import send_email
+from app.services.emailer import email_configured, send_email
 from app.services.security import create_access_token, decode_access_token, mask_token
 
 logger = logging.getLogger("app.routers.auth")
@@ -295,7 +295,14 @@ async def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_
     """
     Always returns success so account existence is not leaked. When an email
     provider is configured and the account uses a password, a reset link is sent.
+    When no provider is configured the endpoint fails closed with 503 so the UI
+    never claims an email was sent when none was.
     """
+    if not email_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Password reset by email is not set up yet.",
+        )
     user = db.query(User).filter(User.email == (req.email or "").strip().lower()).first()
     if user and user.password_hash:
         reset_token = create_access_token(
