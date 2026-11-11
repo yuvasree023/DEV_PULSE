@@ -25,6 +25,7 @@ from app.services.auth import (
     create_email_user,
     authenticate_email_user,
     link_github_to_user,
+    add_email_password_to_user,
 )
 from app.services.passwords import validate_password_strength, hash_password
 from app.services.emailer import email_configured, send_email
@@ -81,6 +82,12 @@ class SignupRequest(BaseModel):
 class EmailLoginRequest(BaseModel):
     email: str
     password: str
+
+
+class AddEmailPasswordRequest(BaseModel):
+    email: str = Field(..., description="Email to sign in with")
+    password: str = Field(..., description="At least 8 characters")
+    current_password: Optional[str] = Field(None, description="Required when the account already has a password")
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -290,6 +297,25 @@ async def link_github(
     return {"linked": True, "user": user_payload(linked)}
 
 
+@router.post("/email-password", summary="Add or change email/password sign-in on the signed-in account")
+def add_email_password(
+    req: AddEmailPasswordRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    Lets an existing account (for example a GitHub-only account) add email/password
+    sign-in, or change it. Being signed in proves control of the account; the
+    email is refused when it belongs to a different account (never merged).
+    """
+    ensure_persistent_writes()
+    pw_error = validate_password_strength(req.password)
+    if pw_error:
+        raise HTTPException(status_code=400, detail=pw_error)
+    updated = add_email_password_to_user(db, user, req.email, req.password, req.current_password)
+    return {"success": True, "user": user_payload(updated)}
+
+
 @router.post("/password/forgot", summary="Request a password reset email")
 async def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_db)):
     """
@@ -375,6 +401,7 @@ def get_current_user_profile(
             "created_at": user.created_at.isoformat() if user.created_at else None,
         },
         "github_connected": token is not None,
+        "has_password": user.password_hash is not None,
         "github_token_masked": mask_token(token) if token else None,
         "tracked_repositories_count": len(tracked_repos),
         "tracked_repositories": [
