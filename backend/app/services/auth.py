@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.config import settings
 from app.models.user import User, UserToken
+from app.services.passwords import hash_password, verify_password
 from app.services.security import (
     create_access_token,
     decode_access_token,
@@ -65,7 +66,7 @@ def get_current_user(
     if not current_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required. Please log in with GitHub.",
+            detail="Authentication required. Please log in.",
             headers={"WWW-Authenticate": "Bearer"},
         )
     return current_user
@@ -269,4 +270,102 @@ def get_or_create_demo_user(db: Session) -> User:
         db.add(demo_tok)
         db.commit()
 
+    return user
+
+
+def create_email_user(db: Session, name: str, email: str, password: str) -> User:
+    """Creates an email/password account. GitHub stays disconnected until the user links it."""
+    email_norm = (email or "").strip().lower()
+    if not email_norm or "@" not in email_norm:
+        raise HTTPException(status_code=400, detail="A valid email address is required.")
+    if db.query(User).filter(User.email == email_norm).first():
+        raise HTTPException(status_code=409, detail="An account with this email already exists. Log in instead.")
+    now = datetime.now(timezone.utc)
+    user = User(
+        github_id=None,
+        username=email_norm,
+        email=email_norm,
+        name=(name or "").strip() or email_norm.split("@")[0],
+        avatar_url="",
+        bio="",
+        company="",
+        password_hash=hash_password(password),
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def authenticate_email_user(db: Session, email: str, password: str) -> Optional[User]:
+    """Returns the user when email + password match, else None."""
+    email_norm = (email or "").strip().lower()
+    if not email_norm:
+        return None
+    user = db.query(User).filter(User.email == email_norm).first()
+    if not user or not user.password_hash:
+        return None
+    if not verify_password(password, user.password_hash):
+        return None
+    return user
+
+
+def link_github_to_user(
+    db: Session,
+    user: User,
+    github_profile: Dict[str, Any],
+    access_token: str,
+    scope: Optional[str] = None,
+) -> User:
+    """
+    Attaches a GitHub identity to the currently signed-in account.
+    Never merges accounts: if this GitHub identity belongs to another DevPulse
+    account, the link is refused and the user must choose what to do.
+    """
+    gh_id = str(github_profile.get("id"))
+    other = db.query(User).filter(User.github_id == gh_id, User.id != user.id).first()
+    if other:
+        raise HTTPException(
+            status_code=409,
+            detail="This GitHub account is already connected to a different DevPulse account. Log out and continue with GitHub to use that existing account instead.",
+        )
+    if user.github_id and user.github_id != gh_id:
+        raise HTTPException(
+            status_code=400,
+            detail="A different GitHub account is already connected to this DevPulse account.",
+        )
+
+    now = datetime.now(timezone.utc)
+    user.github_id = gh_id
+    user.avatar_url = github_profile.get("avatar_url") or user.avatar_url
+    user.bio = github_profile.get("bio") or user.bio
+    user.company = github_profile.get("company") or user.company
+    user.updated_at = now
+
+    enc_token = encrypt_token(access_token)
+    token_rec = (
+        db.query(UserToken)
+        .filter(UserToken.user_id == user.id, UserToken.provider == "github")
+        .first()
+    )
+    if not token_rec:
+        token_rec = UserToken(
+            user_id=user.id,
+            provider="github",
+            encrypted_access_token=enc_token,
+            scope=scope or "read:user,user:email",
+            token_type="bearer",
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(token_rec)
+    else:
+        token_rec.encrypted_access_token = enc_token
+        token_rec.scope = scope or token_rec.scope
+        token_rec.updated_at = now
+
+    db.commit()
+    db.refresh(user)
     return user
