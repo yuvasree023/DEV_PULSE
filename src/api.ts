@@ -378,8 +378,18 @@ export const api = {
         method: 'POST'
       }),
 
-    getMe: (): Promise<{ authenticated: boolean; user: any; github_connected?: boolean; has_password?: boolean }> =>
-      fetchJson<{ authenticated: boolean; user: any; github_connected?: boolean; has_password?: boolean }>('/api/auth/me'),
+    getMe: (): Promise<{ authenticated: boolean; user: any; github_connected?: boolean; has_password?: boolean; email_verified?: boolean }> =>
+      fetchJson<{ authenticated: boolean; user: any; github_connected?: boolean; has_password?: boolean; email_verified?: boolean }>('/api/auth/me'),
+
+    sendEmailVerification: (): Promise<{ success: boolean; message: string }> =>
+      fetchJson<{ success: boolean; message: string }>('/api/auth/email/verify/send', { method: 'POST' }),
+
+    confirmEmailVerification: (token: string): Promise<{ success: boolean; message: string }> =>
+      fetchJson<{ success: boolean; message: string }>('/api/auth/email/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      }),
 
     addEmailPassword: (email: string, password: string, currentPassword?: string): Promise<{ success: boolean; user: any }> =>
       fetchJson<{ success: boolean; user: any }>('/api/auth/email-password', {
