@@ -330,7 +330,9 @@ async def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_
             detail="Password reset by email is not set up yet.",
         )
     user = db.query(User).filter(User.email == (req.email or "").strip().lower()).first()
-    if user and user.password_hash:
+    # Reset links go only to verified emails: an unverified address may belong to
+    # someone else, and it cannot be allowed to receive account-recovery mail.
+    if user and user.password_hash and user.email_verified:
         reset_token = create_access_token(
             {"sub": str(user.id), "purpose": "password_reset"},
             expires_delta=timedelta(minutes=30),
@@ -371,6 +373,65 @@ def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db)):
     return {"success": True, "message": "Password updated. You can log in with the new password."}
 
 
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+
+@router.post("/email/verify/send", summary="Send an email-verification link to the signed-in account")
+async def send_email_verification(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    Emails a verification link for the account's current email address. Fails
+    closed with 503 while no email provider is configured so the UI never
+    claims an email was sent when none was. This is the only mail an
+    unverified address can receive; password-reset links require a verified email.
+    """
+    if not email_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Email verification is not set up yet.",
+        )
+    if not user.email:
+        raise HTTPException(status_code=400, detail="Add an email address first.")
+    if user.email_verified:
+        return {"success": True, "message": "This email is already verified."}
+    token = create_access_token(
+        {"sub": str(user.id), "purpose": "email_verify"},
+        expires_delta=timedelta(hours=24),
+    )
+    frontend = (settings.FRONTEND_URL or "").rstrip("/") or "https://devpulse-app-snowy.vercel.app"
+    link = f"{frontend}/verify-email?token={token}"
+    sent = await send_email(
+        user.email,
+        "Verify your DevPulse email",
+        f"<p>Hi {user.name or 'there'},</p>"
+        f"<p>Confirm this email for your DevPulse account within 24 hours:<br>"
+        f'<a href="{link}">{link}</a></p>'
+        f"<p>If you did not ask for this, ignore this email.</p>",
+    )
+    if not sent:
+        raise HTTPException(status_code=502, detail="The verification email could not be sent. Please try again later.")
+    return {"success": True, "message": "Verification email sent. Check your inbox."}
+
+
+@router.post("/email/verify", summary="Confirm an email-verification token")
+def verify_email(req: VerifyEmailRequest, db: Session = Depends(get_db)):
+    """Marks the account email verified using the emailed token."""
+    ensure_persistent_writes()
+    payload = decode_access_token(req.token)
+    if not payload or payload.get("purpose") != "email_verify" or "sub" not in payload:
+        raise HTTPException(status_code=400, detail="This verification link is invalid or has expired. Request a new one.")
+    user = db.query(User).filter(User.id == int(payload["sub"])).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="This verification link is invalid or has expired. Request a new one.")
+    user.email_verified = True
+    user.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"success": True, "message": "Email verified. You can use it for sign-in and password resets."}
+
+
 @router.get("/me", summary="Get authenticated user profile and connected repos")
 def get_current_user_profile(
     user: User = Depends(get_current_user),
@@ -402,6 +463,7 @@ def get_current_user_profile(
         },
         "github_connected": token is not None,
         "has_password": user.password_hash is not None,
+        "email_verified": bool(user.email_verified),
         "github_token_masked": mask_token(token) if token else None,
         "tracked_repositories_count": len(tracked_repos),
         "tracked_repositories": [
