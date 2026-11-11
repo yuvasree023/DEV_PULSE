@@ -148,19 +148,38 @@ async def fetch_github_user_profile(access_token: str) -> Dict[str, Any]:
             )
         user_data = user_resp.json()
 
-        # If email is private in profile, fetch from /user/emails
-        email = user_data.get("email")
-        if not email:
-            try:
-                emails_resp = await client.get("https://api.github.com/user/emails", headers=headers)
-                if emails_resp.status_code == 200:
-                    emails = emails_resp.json()
-                    primary = next((e["email"] for e in emails if e.get("primary")), None)
-                    email = primary or (emails[0]["email"] if emails else None)
-            except Exception:
-                pass
+        # Email + verification status come only from the authenticated
+        # /user/emails entries: a profile email GitHub merely returned is not
+        # proof of verification. verified=true on the exact address is required.
+        profile_email = user_data.get("email")
+        email_entries = []
+        try:
+            emails_resp = await client.get("https://api.github.com/user/emails", headers=headers)
+            if emails_resp.status_code == 200:
+                email_entries = emails_resp.json()
+        except Exception:
+            email_entries = []
 
-        user_data["primary_email"] = email or f"{user_data.get('login')}@users.noreply.github.com"
+        def _verified(addr):
+            if not addr:
+                return False
+            # noreply aliases cannot receive mail, so they are never verified for us
+            if addr.endswith("@users.noreply.github.com"):
+                return False
+            return any(
+                e.get("email", "").lower() == addr.lower() and e.get("verified") is True
+                for e in email_entries
+            )
+
+        if profile_email:
+            email = profile_email
+        else:
+            primary = next((e["email"] for e in email_entries if e.get("primary")), None)
+            email = primary or (email_entries[0]["email"] if email_entries else None)
+
+        email = email or f"{user_data.get('login')}@users.noreply.github.com"
+        user_data["primary_email"] = email
+        user_data["email_verified"] = _verified(email)
         return user_data
 
 
@@ -182,8 +201,9 @@ def upsert_user_and_token(
     bio = github_profile.get("bio")
     company = github_profile.get("company")
 
-    # GitHub account emails are verified by GitHub; noreply aliases cannot receive mail.
-    gh_email_verified = bool(email) and not email.endswith("@users.noreply.github.com")
+    # Verification is grounded in the authenticated /user/emails entry
+    # (verified=true on the exact address), computed in fetch_github_user_profile.
+    gh_email_verified = bool(email) and github_profile.get("email_verified") is True
 
     user = db.query(User).filter(User.github_id == gh_id).first()
     now = datetime.now(timezone.utc)
