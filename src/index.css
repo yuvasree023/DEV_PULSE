@@ -19,3 +19,59 @@
 @media(max-width:1150px){.dp-connections-grid{grid-template-columns:1fr 1fr}.dp-tool:last-child{grid-column:1/-1}.dp-content{padding:30px 25px 0}.dp-topbar{padding:0 25px}.dp-main-grid{grid-template-columns:1fr}.dp-public-nav>.dp-mono{display:none}}
 @media(max-width:760px){.dp-sidebar{transform:translateX(-100%);transition:transform .2s}.dp-sidebar.is-open{transform:translateX(0)}.dp-workspace{margin-left:0}.dp-menu,.dp-close{display:grid;place-items:center;width:44px;height:44px;flex-shrink:0}.dp-close{position:absolute;right:7px;top:26px}.dp-sidebar>.dp-brand{font-size:21px}.dp-scrim{display:block;position:fixed;inset:0;background:#0f172a70;z-index:39}.dp-topbar{height:68px;padding:0 13px;gap:6px}.dp-top-title{gap:6px;font-size:0}.dp-top-title>svg{display:none}.dp-top-title strong{font-size:11px}.dp-service{font-size:8px;gap:5px;max-width:116px;line-height:1.5}.dp-content{padding:29px 17px 0}.dp-page-heading{align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:25px}.dp-page-heading h1{font-size:35px;margin:13px 0}.dp-page-heading p{font-size:11px}.dp-page-heading>.dp-secondary{padding:8px 12px;font-size:10px}.dp-metrics{gap:9px;grid-template-columns:1fr;margin-bottom:18px}.dp-metric{padding:16px 18px;display:grid;grid-template-columns:1fr auto;align-items:center}.dp-metric>div{font-size:11px}.dp-metric>div svg{display:none}.dp-metric>strong{font-size:27px;margin:0;grid-column:2;grid-row:1/3}.dp-metric>small{font-size:9px}.dp-main-grid{gap:18px}.dp-panel{padding:20px}.dp-panel-title{align-items:flex-start;flex-wrap:wrap}.dp-panel h2{font-size:20px}.dp-panel-title .dp-badge{font-size:9px}.dp-empty{min-height:310px;padding:30px 5px}.dp-empty h3{font-size:20px}.dp-empty p{font-size:11px}.dp-connections-grid,.dp-repo-grid{grid-template-columns:1fr}.dp-tool:last-child{grid-column:auto}.dp-github-connect{align-items:flex-start;gap:13px;flex-wrap:wrap}.dp-github-connect>div:nth-child(2){flex:1;min-width:160px}.dp-github-connect>button{margin-left:0}.dp-tool-top .dp-badge{font-size:9px}.dp-tool p,.dp-tool ol{font-size:12px}.dp-session-connect{gap:12px;flex-direction:column}.dp-session-connect p{font-size:12px}.dp-footer{flex-wrap:wrap;gap:12px;padding:22px 0}.dp-footer>.dp-mono{width:100%;margin:0}.dp-repo-toolbar{flex-direction:column}.dp-repo-toolbar .dp-secondary{align-self:flex-start}.dp-repo-toolbar label{min-height:44px}.dp-session{flex-wrap:wrap}.dp-session b{margin-left:31px}.dp-public-nav{padding:21px}.dp-public-nav .dp-brand{font-size:21px}.dp-public-nav a{font-size:10px}.dp-landing{grid-template-columns:1fr;padding:47px 22px;gap:45px}.dp-landing h1{font-size:47px;letter-spacing:-2.5px}.dp-intro{font-size:14px}.dp-preview{transform:none;padding:23px}.dp-preview-art{height:250px}.dp-preview-bar .dp-mono{font-size:8px}.dp-float{font-size:9px;padding:9px}.f1{left:0}.f2{right:0}.dp-public-footer{padding:22px;gap:15px;flex-direction:column}.dp-neutral-note{font-size:11px}.dp-lab-content .flex.items-center.justify-between{flex-wrap:wrap;gap:12px}.dp-lab-content svg{max-width:100%}}
 @media(prefers-reduced-motion:reduce){.dp-app *{animation:none!important;transition:none!important}}
+
+/* Email/password auth screens */
+.dp-auth-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 40px 20px;
+  background: #020617;
+}
+.dp-auth-page .dp-brand { justify-content: center; }
+.dp-auth-embed { min-height: 60vh; background: transparent; }
+.dp-auth-card {
+  width: 100%;
+  max-width: 400px;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 18px;
+  padding: 32px 30px;
+  display: flex;
+  flex-direction: column;
+}
+.dp-auth-card h1 { font-family: 'Manrope', sans-serif; font-size: 22px; font-weight: 700; margin-bottom: 6px; color: #e2e8f0; }
+.dp-auth-sub { color: #94a3b8; font-size: 13.5px; margin-bottom: 20px; line-height: 1.5; }
+.dp-auth-card form { display: flex; flex-direction: column; }
+.dp-auth-card label { font-size: 11.5px; letter-spacing: .04em; color: #94a3b8; margin: 14px 0 6px; }
+.dp-auth-card input {
+  width: 100%;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 11px 13px;
+  color: #e2e8f0;
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+}
+.dp-auth-card input::placeholder { color: #475569; }
+.dp-auth-card input:focus { outline: none; border-color: #3b82f6; }
+.dp-auth-card .dp-primary { margin-top: 24px; width: 100%; justify-content: center; gap: 8px; }
+.dp-auth-card .dp-text-link { margin-top: 14px; align-self: center; background: none; border: none; color: #60a5fa; font-size: 13px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+.dp-auth-card .dp-text-link:hover { text-decoration: underline; }
+.dp-auth-switch { text-align: center; margin-top: 18px; font-size: 13px; color: #94a3b8; }
+.dp-auth-switch button { background: none; border: none; color: #60a5fa; font-weight: 600; font-size: 13px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+.dp-auth-github { margin-top: 16px; width: 100%; justify-content: center; gap: 8px; }
+.dp-auth-fine { margin-top: 20px; font-size: 11.5px; color: #475569; display: flex; gap: 6px; align-items: center; line-height: 1.5; }
+.dp-auth-notice { color: #93c5fd; font-size: 13px; background: #172554; border-radius: 8px; padding: 9px 12px; margin-bottom: 12px; }
+.dp-auth-step { display: inline-block; align-self: flex-start; background: #172554; color: #93c5fd; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 999px; letter-spacing: .08em; margin-bottom: 14px; }
+.dp-auth-tool { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 16px; display: flex; gap: 12px; align-items: flex-start; margin-top: 4px; }
+.dp-auth-tool-ico { width: 38px; height: 38px; border-radius: 10px; background: #0f172a; border: 1px solid #334155; display: flex; align-items: center; justify-content: center; color: #93c5fd; flex: none; }
+.dp-auth-tool strong { font-size: 14px; display: block; margin-bottom: 3px; color: #e2e8f0; }
+.dp-auth-tool p { font-size: 12px; color: #94a3b8; line-height: 1.5; }
+.dp-landing-actions { display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap; }
+.dp-landing-github { margin-top: 14px; background: none; border: none; color: #60a5fa; font-size: 13.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; font-family: 'DM Sans', sans-serif; padding: 0; }
+.dp-landing-github:hover { text-decoration: underline; }
