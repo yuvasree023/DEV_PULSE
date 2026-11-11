@@ -104,6 +104,21 @@ async def lifespan(app: FastAPI):
         logger.info("coding_sessions.label column verified.")
     except Exception as exc:
         logger.warning("coding_sessions label migration skipped: %s", type(exc).__name__)
+
+    # users table: email/password accounts (password_hash) and nullable github_id
+    try:
+        from sqlalchemy import text as _text2
+        with engine.begin() as _conn2:
+            if engine.url.get_backend_name() == "postgresql":
+                _conn2.execute(_text2("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(512)"))
+                _conn2.execute(_text2("ALTER TABLE users ALTER COLUMN github_id DROP NOT NULL"))
+            else:
+                _cols2 = [r[1] for r in _conn2.execute(_text2("PRAGMA table_info(users)"))]
+                if "password_hash" not in _cols2:
+                    _conn2.execute(_text2("ALTER TABLE users ADD COLUMN password_hash VARCHAR(512)"))
+        logger.info("users email/password columns verified.")
+    except Exception as exc:
+        logger.warning("users password migration skipped: %s", type(exc).__name__)
         
     yield
     logger.info("Shutting down application...")
