@@ -101,3 +101,10 @@ def check_db_connection() -> bool:
     except Exception as exc:
         logger.error("Database connection check failed (%s: %s)", type(exc).__name__, _sanitize_error(exc))
         return False
+
+def persistence_ready() -> bool:
+    """True when the service is on its real persistent backend (not the ephemeral sqlite fallback)."""
+    try:
+        return not DB_ON_FALLBACK
+    except NameError:
+        return False
