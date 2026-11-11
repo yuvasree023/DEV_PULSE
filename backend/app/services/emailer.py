@@ -12,6 +12,14 @@ import httpx
 logger = logging.getLogger("app.services.emailer")
 
 
+def email_configured() -> bool:
+    """True when a sender address and at least one provider API key are set."""
+    from_address = os.getenv("EMAIL_FROM_ADDRESS", "").strip()
+    resend_key = os.getenv("RESEND_API_KEY", "").strip()
+    brevo_key = os.getenv("BREVO_API_KEY", "").strip()
+    return bool(from_address and (resend_key or brevo_key))
+
+
 async def send_email(to: str, subject: str, html: str) -> bool:
     """Sends one transactional email. Returns False when unconfigured or failed."""
     from_address = os.getenv("EMAIL_FROM_ADDRESS", "").strip()
