@@ -273,6 +273,31 @@ def get_or_create_demo_user(db: Session) -> User:
     return user
 
 
+def add_email_password_to_user(db: Session, user: User, email: str, password: str, current_password: Optional[str] = None) -> User:
+    """Adds or changes email/password sign-in on the signed-in account.
+
+    The caller is already authenticated, which proves control of this account.
+    The email must not belong to a different account: identities are never merged.
+    When the account already has a password, the current password must be given
+    and correct before anything changes.
+    """
+    email_norm = (email or "").strip().lower()
+    if not email_norm or "@" not in email_norm:
+        raise HTTPException(status_code=400, detail="A valid email address is required.")
+    existing = db.query(User).filter(User.email == email_norm).first()
+    if existing and existing.id != user.id:
+        raise HTTPException(status_code=409, detail="That email belongs to a different DevPulse account.")
+    if user.password_hash:
+        if not current_password or not verify_password(current_password, user.password_hash):
+            raise HTTPException(status_code=403, detail="Your current password is required to change email or password.")
+    user.email = email_norm
+    user.password_hash = hash_password(password)
+    user.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 def create_email_user(db: Session, name: str, email: str, password: str) -> User:
     """Creates an email/password account. GitHub stays disconnected until the user links it."""
     email_norm = (email or "").strip().lower()
