@@ -5,6 +5,7 @@ GitHub OAuth, PAT authentication, and user profile management router for DEV_PUL
 import logging
 from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
+from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -12,6 +13,7 @@ from app.database import get_db
 from app.config import settings
 from app.models.user import User
 from app.models.user_repository import UserRepository
+from app.database import persistence_ready
 from app.services.auth import (
     get_current_user,
     get_current_user_optional,
@@ -20,12 +22,74 @@ from app.services.auth import (
     upsert_user_and_token,
     get_or_create_demo_user,
     get_user_github_token,
+    create_email_user,
+    authenticate_email_user,
+    link_github_to_user,
 )
-from app.services.security import create_access_token, mask_token
+from app.services.passwords import validate_password_strength, hash_password
+from app.services.emailer import send_email
+from app.services.security import create_access_token, decode_access_token, mask_token
 
 logger = logging.getLogger("app.routers.auth")
 
-router = APIRouter(prefix="/auth", tags=["GitHub Authentication & User Sessions"])
+router = APIRouter(prefix="/auth", tags=["Authentication & User Sessions"])
+
+
+def ensure_persistent_writes():
+    """
+    Fail closed: when the service is on its ephemeral SQLite fallback, account
+    data written now would vanish on the next restart. Refuse the write instead.
+    """
+    if not persistence_ready():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Account storage is temporarily unavailable while the database reconnects. Please try again in a few minutes; nothing was saved.",
+        )
+
+
+def user_payload(user: User) -> Dict[str, Any]:
+    return {
+        "id": user.id,
+        "github_id": user.github_id,
+        "username": user.username,
+        "email": user.email,
+        "name": user.name,
+        "avatar_url": user.avatar_url,
+        "bio": user.bio,
+        "company": user.company,
+    }
+
+
+def issue_session_response(user: User, response: Response) -> Dict[str, Any]:
+    jwt_token = create_access_token({"sub": str(user.id), "username": user.username})
+    response.set_cookie(
+        key="devpulse_auth_token",
+        value=jwt_token,
+        httponly=False,
+        max_age=60 * 60 * 24 * 7,
+        samesite="lax",
+    )
+    return {"access_token": jwt_token, "token_type": "bearer", "user": user_payload(user)}
+
+
+class SignupRequest(BaseModel):
+    name: str = Field("", description="Display name")
+    email: str = Field(..., description="Account email")
+    password: str = Field(..., description="At least 8 characters")
+
+
+class EmailLoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
 
 
 class PATLoginRequest(BaseModel):
@@ -69,6 +133,7 @@ async def github_oauth_callback(req: OAuthCallbackRequest, response: Response, d
     """
     Exchanges GitHub OAuth code, retrieves user profile, creates user session, and issues JWT.
     """
+    ensure_persistent_writes()
     token_data = await exchange_github_code_for_token(req.code)
     access_token = token_data.get("access_token")
     if not access_token:
@@ -118,6 +183,7 @@ async def login_with_pat(req: PATLoginRequest, response: Response, db: Session =
     """
     Validates a GitHub Personal Access Token against GitHub API, creates/updates user, and sets session.
     """
+    ensure_persistent_writes()
     token = req.token.strip()
     if not token:
         raise HTTPException(status_code=400, detail="Personal access token is required.")
@@ -155,6 +221,7 @@ def login_as_demo(response: Response, db: Session = Depends(get_db)):
     """
     Instant demo sign-in for preview and grading.
     """
+    ensure_persistent_writes()
     user = get_or_create_demo_user(db)
     jwt_token = create_access_token({"sub": str(user.id), "username": user.username})
     response.set_cookie(
@@ -176,6 +243,99 @@ def login_as_demo(response: Response, db: Session = Depends(get_db)):
             "bio": user.bio,
         },
     }
+
+
+@router.post("/signup", summary="Create an account with email and password")
+def signup(req: SignupRequest, response: Response, db: Session = Depends(get_db)):
+    """
+    Email/password registration. GitHub connection is a separate step after login.
+    """
+    ensure_persistent_writes()
+    pw_error = validate_password_strength(req.password)
+    if pw_error:
+        raise HTTPException(status_code=400, detail=pw_error)
+    user = create_email_user(db, req.name, req.email, req.password)
+    return issue_session_response(user, response)
+
+
+@router.post("/login", summary="Log in with email and password")
+def login_with_email(req: EmailLoginRequest, response: Response, db: Session = Depends(get_db)):
+    """
+    Email/password login for existing accounts.
+    """
+    user = authenticate_email_user(db, req.email, req.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Email or password is incorrect.")
+    return issue_session_response(user, response)
+
+
+@router.post("/github/link", summary="Connect GitHub to the signed-in account")
+async def link_github(
+    req: OAuthCallbackRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """
+    Links a GitHub identity to the current account. The user completes GitHub's
+    own OAuth consent; the code from that flow is exchanged here. Never merges
+    accounts: a GitHub identity already tied to another account is refused.
+    """
+    ensure_persistent_writes()
+    token_data = await exchange_github_code_for_token(req.code)
+    access_token = token_data.get("access_token")
+    if not access_token:
+        raise HTTPException(status_code=400, detail="Failed to receive access token from GitHub.")
+    github_profile = await fetch_github_user_profile(access_token)
+    linked = link_github_to_user(db, user, github_profile, access_token, scope=token_data.get("scope"))
+    return {"linked": True, "user": user_payload(linked)}
+
+
+@router.post("/password/forgot", summary="Request a password reset email")
+async def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """
+    Always returns success so account existence is not leaked. When an email
+    provider is configured and the account uses a password, a reset link is sent.
+    """
+    user = db.query(User).filter(User.email == (req.email or "").strip().lower()).first()
+    if user and user.password_hash:
+        reset_token = create_access_token(
+            {"sub": str(user.id), "purpose": "password_reset"},
+            expires_delta=timedelta(minutes=30),
+        )
+        frontend = (settings.FRONTEND_URL or "").rstrip("/") or "https://devpulse-app-snowy.vercel.app"
+        link = f"{frontend}/reset-password?token={reset_token}"
+        sent = await send_email(
+            user.email,
+            "Reset your DevPulse password",
+            f"<p>Hi {user.name or 'there'},</p>"
+            f"<p>Reset your DevPulse password within 30 minutes:<br>"
+            f'<a href="{link}">{link}</a></p>'
+            f"<p>If you did not ask for this, ignore this email.</p>",
+        )
+        if not sent:
+            logger.warning("Password reset email for user %s was not sent (provider unconfigured or failed).", user.id)
+    return {"success": True, "message": "If that email has an account, a reset link is on its way."}
+
+
+@router.post("/password/reset", summary="Set a new password with a reset token")
+def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """
+    Completes a password reset using the emailed token.
+    """
+    ensure_persistent_writes()
+    payload = decode_access_token(req.token)
+    if not payload or payload.get("purpose") != "password_reset" or "sub" not in payload:
+        raise HTTPException(status_code=400, detail="This reset link is invalid or has expired. Request a new one.")
+    pw_error = validate_password_strength(req.new_password)
+    if pw_error:
+        raise HTTPException(status_code=400, detail=pw_error)
+    user = db.query(User).filter(User.id == int(payload["sub"])).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="This reset link is invalid or has expired. Request a new one.")
+    user.password_hash = hash_password(req.new_password)
+    user.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"success": True, "message": "Password updated. You can log in with the new password."}
 
 
 @router.get("/me", summary="Get authenticated user profile and connected repos")
